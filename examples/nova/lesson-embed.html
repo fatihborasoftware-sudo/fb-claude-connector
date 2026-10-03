@@ -67,10 +67,10 @@
       [].forEach.call(tabs.children,function(b){ b.setAttribute('aria-selected', b.dataset.p===p?'true':'false'); });
       url.textContent='nova-guzellik.com/'+(p==='index'?'':p+'/');
       open.href='https://github.com/fatihborasoftware-sudo/fb-claude-connector/blob/main/examples/nova/mockup/'+p+'.html';
-      get(p).then(function(html){ frame.srcdoc=html; }, function(){ frame.srcdoc='<p class="nvx-msg" style="font-family:sans-serif;padding:60px 20px;text-align:center">Sayfa yüklenemedi. GitHub\'dan açabilirsiniz.</p>'; }); }
+      get(p).then(function(html){ frame.srcdoc=html; }, function(){ frame.srcdoc='<p class="nvx-msg" style="font-family:sans-serif;padding:60px 20px;text-align:center">Sayfa yüklenemedi. GitHub üzerinden açabilirsiniz.</p>'; }); }
     frame.addEventListener('load',function(){ var d; try{ d=frame.contentDocument; }catch(e){ return; } if(!d) return;
       d.addEventListener('click',function(e){ var a=e.target.closest&&e.target.closest('a'); if(!a) return; var h=a.getAttribute('href')||'';
-        var m=h.match(/^([\w-]+)\.html(#.*)?$/); if(m){ e.preventDefault(); show(m[1]); return; }
+        var m=h.match(/^([A-Za-z0-9_-]+)[.]html(#.*)?$/); if(m){ e.preventDefault(); show(m[1]); return; }
         if(/^https?:/.test(h)){ e.preventDefault(); window.open(h,'_blank','noopener'); } else if(h.charAt(0)!=='#'){ e.preventDefault(); } });
       d.addEventListener('submit',function(e){ e.preventDefault(); }); });
     open.addEventListener('click',function(e){ if(!cache[cur]||!window.Blob) return; e.preventDefault(); window.open(URL.createObjectURL(new Blob([cache[cur]],{type:'text/html'})),'_blank'); });
