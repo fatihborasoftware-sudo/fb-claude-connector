@@ -1,4 +1,4 @@
-Build the Nova Güzellik website on my WordPress test site through the "Nova" connector (FB AI Engine – Claude Connector). The attached file **Nova-build-kit.md** has everything: the build plan, images, theme settings, CSS, form, footer, menu, every page and every blog post as ready block markup. I already approved the mockups: https://claude.ai/artifact/54AFdTQrKdzjTDHQVg9fvM
+Build the Nova Güzellik website on my WordPress test site through the "Nova" connector (FB AI Engine – Claude Connector). The attached file **Nova-build-kit.md** has everything: the build plan, images, theme settings, CSS, form, footer, menu, every page and every blog post as ready block markup. I already approved the mockups in chat.
 
 The site is fresh: only the connector is installed. Work in this order and keep me posted live:
 
