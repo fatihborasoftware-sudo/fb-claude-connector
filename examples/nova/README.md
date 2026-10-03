@@ -40,6 +40,8 @@ Click a picture to see it full size, or open the real pages: download [`mockup/`
 7. **Start a new chat**, attach the kit and paste the build prompt (for Nova: [`prompts/3-build-prompt.md`](prompts/3-build-prompt.md) — first replace `https://fatihbora.net/test` in the kit with your site address).
 8. **Approve the build plan once** (Claude Connection → Approvals) and watch it build on **Watch Me Live**.
 
-The Nova kit loads its pictures from the original site (`fatihbora.net/botox`); they are used here for this demo. For a real site, use your own images.
+The Nova pictures are hosted on fbsoftwaresolutions.com.tr for this demo. For a real site, use your own images.
+
+You can also click through the mockup on the lesson page: https://fbsoftwaresolutions.com.tr/tutorials/claude-ve-wordpress-ile-site-yapimi-part-4-bos-wordpresse-tek-onayla-tum-site/
 
 **Türkçe özet:** Videodaki siteyi biz kurduk, sen de aynısını kurabilirsin. Mockup'u tarayıcıda aç, eklentiyi kur, connector'ı bağla, kiti yeni bir sohbete ekleyip 3. prompt'u yapıştır, build planı bir kez onayla — gerisini Claude yapar.

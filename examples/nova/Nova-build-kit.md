@@ -1,6 +1,6 @@
 # Nova Güzellik — build kit for FB AI Engine – Claude Connector
 
-Target site: **https://fatihbora.net/test** (connector "Nova", plugin 1.2.1+). Source site for images: https://fatihbora.net/botox. Approved mockups: https://claude.ai/artifact/54AFdTQrKdzjTDHQVg9fvM
+Target site: **https://fatihbora.net/test** (connector "Nova", plugin 1.2.1+). Images: hosted on fbsoftwaresolutions.com.tr (copied from the original Nova demo site).
 
 Placeholders in the markup: `{{img:KEY}}` → the url media_upload returned for that key (section 2). `{{form_shortcode}}` → the shortcode form_create returned. Use every block exactly as written; do not add <style> tags (styles live in section 4).
 
@@ -8,9 +8,8 @@ Placeholders in the markup: `{{img:KEY}}` → the url media_upload returned for 
 ```json
 {
  "title": "Nova Güzellik website",
- "summary": "Rebuild of fatihbora.net/botox as a modern Kadence site on the test install, from the approved Nova mockups: 8 pages, 6 blog posts, header, footer, menu, contact form. Images copied from the old site.",
- "mockups": "https://claude.ai/artifact/54AFdTQrKdzjTDHQVg9fvM",
- "pages": [
+ "summary": "Rebuild of the old Nova clinic site as a modern Kadence site on the test install, from the approved Nova mockups: 8 pages, 6 blog posts, header, footer, menu, contact form. Images copied from the old site.",
+  "pages": [
   {
    "title": "Anasayfa",
    "type": "page"
@@ -89,30 +88,30 @@ Placeholders in the markup: `{{img:KEY}}` → the url media_upload returned for 
 ## 2. Images (media_upload: url + alt; keep key → id + url)
 | key | url | alt | used on |
 |---|---|---|---|
-| logo | https://fatihbora.net/botox/wp-content/uploads/2025/06/Logo-1.png | Nova logosu | Header logo + footer |
-| hero | https://fatihbora.net/botox/wp-content/uploads/2025/06/Banner1.png | Boynuna dokunan, bakımlı cildiyle poz veren kadın | Anasayfa hero |
-| t1 | https://fatihbora.net/botox/wp-content/uploads/2025/09/Banner16.png | Cihaz destekli cilt uygulaması | Anasayfa, Tedaviler, Galeri |
-| t2 | https://fatihbora.net/botox/wp-content/uploads/2025/09/Banner15.png | Yüze bakım maskesi uygulanıyor | Anasayfa, Tedaviler, Galeri |
-| t3 | https://fatihbora.net/botox/wp-content/uploads/2025/09/BG11-2048x1366.jpg | Parmak ucunda bakım kremi | Anasayfa, Galeri |
-| i1 | https://fatihbora.net/botox/wp-content/uploads/2025/08/3.png | (decorative, empty alt) | Cilt bakımı ikonu |
-| i2 | https://fatihbora.net/botox/wp-content/uploads/2025/08/2.png | (decorative, empty alt) | Enjeksiyon ikonu |
-| i3 | https://fatihbora.net/botox/wp-content/uploads/2025/08/1.png | (decorative, empty alt) | Uzman ikonu |
-| g1 | https://fatihbora.net/botox/wp-content/uploads/2025/09/BG13.png | Belirgin yüz hatlarına sahip kadın portresi | Anasayfa kontür, Galeri |
-| g2 | https://fatihbora.net/botox/wp-content/uploads/2025/09/2-1024x684.png | Cilt bakımı öncesi ve sonrası | Galeri |
-| g3 | https://fatihbora.net/botox/wp-content/uploads/2025/09/10-1024x684.png | Erkek danışan, cilt bakımı | Galeri |
-| g4 | https://fatihbora.net/botox/wp-content/uploads/2025/09/BG10.png | Ellerini boynuna koymuş gülümseyen genç kadın | Tedaviler, Galeri |
-| g5 | https://fatihbora.net/botox/wp-content/uploads/2025/09/Banner14-683x1024.png | Yüzüne yaprak dokunduran kadın | Hakkımızda, Galeri |
-| ba1 | https://fatihbora.net/botox/wp-content/uploads/2025/09/1-1024x684.png | Dudak dolgusu öncesi ve sonrası | Anasayfa, Galeri |
-| ba2 | https://fatihbora.net/botox/wp-content/uploads/2025/09/3-1024x684.png | Göz çevresi öncesi ve sonrası | Anasayfa, Galeri |
-| ba3 | https://fatihbora.net/botox/wp-content/uploads/2025/09/9-1024x683.png | Anti-aging bakım öncesi ve sonrası | Anasayfa, Galeri |
-| ba4 | https://fatihbora.net/botox/wp-content/uploads/2025/09/Banner11-1-1024x684.png | Cilt yenileme öncesi ve sonrası | Galeri |
-| ba5 | https://fatihbora.net/botox/wp-content/uploads/2025/09/Banner8-1024x684.png | Dudak dolgunlaştırma öncesi ve sonrası | Galeri |
-| b1 | https://fatihbora.net/botox/wp-content/uploads/2025/08/Yassiz-Bir-Cildin-Sirlarini-Kesfetmek-Dermatoloji-Uzmanlarindan-Ipuclari-1024x684.png | Ahşap kaşıkta doğal bakım yağı | Blog 1 öne çıkan görsel |
-| b2 | https://fatihbora.net/botox/wp-content/uploads/2025/08/Akneye-Elveda-Temiz-ve-Saglikli-Bir-Cilt-Icin-Dermatoloji-Cozumleri-1024x684.png | Havluyla yüzünü kurulayan genç kadın | Blog 2 öne çıkan görsel |
-| b3 | https://fatihbora.net/botox/wp-content/uploads/2025/08/Cilt-Bakimi-Icerikleri-Etkili-Urunlerin-Ardindaki-Sihri-Kesfetmek-1024x576.png | Serum, krem ve doğal bakım ürünleri | Blog 3 öne çıkan görsel |
-| b4 | https://fatihbora.net/botox/wp-content/uploads/2025/08/Guclu-ve-Isiltili-Saclar-Icin-Uzman-Ipuclari-1024x684.png | Uzun, parlak saçlarıyla gülümseyen kadın | Blog 4 öne çıkan görsel |
-| b5 | https://fatihbora.net/botox/wp-content/uploads/2025/08/Dermal-Dolgularin-Cok-Yonlulugunu-Kesfetmek-1024x683.png | Erkek danışana dolgu uygulaması | Blog 5 öne çıkan görsel, Galeri |
-| b6 | https://fatihbora.net/botox/wp-content/uploads/2025/08/Sac-Kaynaklari-ve-Donusturucu-Gucu-1024x684.png | Sarı saçlarını tarayan kadın | Blog 6 öne çıkan görsel |
+| logo | https://fbsoftwaresolutions.com.tr/wp-content/uploads/2026/10/nova-logo.webp | Nova logosu | Header logo + footer |
+| hero | https://fbsoftwaresolutions.com.tr/wp-content/uploads/2026/10/nova-hero.webp | Boynuna dokunan, bakımlı cildiyle poz veren kadın | Anasayfa hero |
+| t1 | https://fbsoftwaresolutions.com.tr/wp-content/uploads/2026/10/nova-t1.webp | Cihaz destekli cilt uygulaması | Anasayfa, Tedaviler, Galeri |
+| t2 | https://fbsoftwaresolutions.com.tr/wp-content/uploads/2026/10/nova-t2.webp | Yüze bakım maskesi uygulanıyor | Anasayfa, Tedaviler, Galeri |
+| t3 | https://fbsoftwaresolutions.com.tr/wp-content/uploads/2026/10/nova-t3.webp | Parmak ucunda bakım kremi | Anasayfa, Galeri |
+| i1 | https://fbsoftwaresolutions.com.tr/wp-content/uploads/2026/10/nova-i1.webp | (decorative, empty alt) | Cilt bakımı ikonu |
+| i2 | https://fbsoftwaresolutions.com.tr/wp-content/uploads/2026/10/nova-i2.webp | (decorative, empty alt) | Enjeksiyon ikonu |
+| i3 | https://fbsoftwaresolutions.com.tr/wp-content/uploads/2026/10/nova-i3.webp | (decorative, empty alt) | Uzman ikonu |
+| g1 | https://fbsoftwaresolutions.com.tr/wp-content/uploads/2026/10/nova-g1.webp | Belirgin yüz hatlarına sahip kadın portresi | Anasayfa kontür, Galeri |
+| g2 | https://fbsoftwaresolutions.com.tr/wp-content/uploads/2026/10/nova-g2.webp | Cilt bakımı öncesi ve sonrası | Galeri |
+| g3 | https://fbsoftwaresolutions.com.tr/wp-content/uploads/2026/10/nova-g3.webp | Erkek danışan, cilt bakımı | Galeri |
+| g4 | https://fbsoftwaresolutions.com.tr/wp-content/uploads/2026/10/nova-g4.webp | Ellerini boynuna koymuş gülümseyen genç kadın | Tedaviler, Galeri |
+| g5 | https://fbsoftwaresolutions.com.tr/wp-content/uploads/2026/10/nova-g5.webp | Yüzüne yaprak dokunduran kadın | Hakkımızda, Galeri |
+| ba1 | https://fbsoftwaresolutions.com.tr/wp-content/uploads/2026/10/nova-ba1.webp | Dudak dolgusu öncesi ve sonrası | Anasayfa, Galeri |
+| ba2 | https://fbsoftwaresolutions.com.tr/wp-content/uploads/2026/10/nova-ba2.webp | Göz çevresi öncesi ve sonrası | Anasayfa, Galeri |
+| ba3 | https://fbsoftwaresolutions.com.tr/wp-content/uploads/2026/10/nova-ba3.webp | Anti-aging bakım öncesi ve sonrası | Anasayfa, Galeri |
+| ba4 | https://fbsoftwaresolutions.com.tr/wp-content/uploads/2026/10/nova-ba4.webp | Cilt yenileme öncesi ve sonrası | Galeri |
+| ba5 | https://fbsoftwaresolutions.com.tr/wp-content/uploads/2026/10/nova-ba5.webp | Dudak dolgunlaştırma öncesi ve sonrası | Galeri |
+| b1 | https://fbsoftwaresolutions.com.tr/wp-content/uploads/2026/10/nova-b1.webp | Ahşap kaşıkta doğal bakım yağı | Blog 1 öne çıkan görsel |
+| b2 | https://fbsoftwaresolutions.com.tr/wp-content/uploads/2026/10/nova-b2.webp | Havluyla yüzünü kurulayan genç kadın | Blog 2 öne çıkan görsel |
+| b3 | https://fbsoftwaresolutions.com.tr/wp-content/uploads/2026/10/nova-b3.webp | Serum, krem ve doğal bakım ürünleri | Blog 3 öne çıkan görsel |
+| b4 | https://fbsoftwaresolutions.com.tr/wp-content/uploads/2026/10/nova-b4.webp | Uzun, parlak saçlarıyla gülümseyen kadın | Blog 4 öne çıkan görsel |
+| b5 | https://fbsoftwaresolutions.com.tr/wp-content/uploads/2026/10/nova-b5.webp | Erkek danışana dolgu uygulaması | Blog 5 öne çıkan görsel, Galeri |
+| b6 | https://fbsoftwaresolutions.com.tr/wp-content/uploads/2026/10/nova-b6.webp | Sarı saçlarını tarayan kadın | Blog 6 öne çıkan görsel |
 
 ## 3. Theme, header, footer, settings
 ```json
