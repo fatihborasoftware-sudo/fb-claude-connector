@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.2 (3 October 2026)
+
+- Fix: the connector's settings now have their own name (`fbcc_connector_settings`). Before, they shared `fbcc_settings` with other plugins that shorten their name to "fbcc" (for example a cookie-consent plugin). On such sites the permission level never saved and stayed **Read-only**. Existing connector settings move over automatically on the first load; another plugin's settings are never touched.
+
 ## 1.2.1 (3 October 2026)
 
 - form_create is always available; when Contact Form 7 is missing it says to install `contact-form-7` first. A build chat that installs CF7 midway can now make the form without starting a new chat.

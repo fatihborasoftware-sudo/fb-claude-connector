@@ -32,7 +32,7 @@ Click a picture to see it full size, or open the real pages: download [`mockup/`
 ## Make it with us — step by step
 
 1. **Install WordPress** (a test site is fine; a sub-folder like `yoursite.com/test` works too).
-2. **Install the connector:** download [fb-claude-connector-1.2.1.zip](https://github.com/fatihborasoftware-sudo/fb-claude-connector/releases/latest) → Plugins → Add New → Upload Plugin → activate.
+2. **Install the connector:** download [fb-claude-connector-1.2.2.zip](https://github.com/fatihborasoftware-sudo/fb-claude-connector/releases/latest) → Plugins → Add New → Upload Plugin → activate.
 3. **Claude Connection:** if you see *Fix your links first*, click **Use post-name links**. Setup → **Run server check**. Overview → level **Site maintainer**.
 4. **Connect Claude:** Settings → Connectors → Add custom connector → paste the address from Setup (`https://yoursite.com/wp-json/fbsa/v1/mcp`, not the home page) → Connect → **Allow Claude**.
 5. **Same site as the video?** Skip to step 7 with our kit. **Your own site?** Run prompt 1, then prompt 2.

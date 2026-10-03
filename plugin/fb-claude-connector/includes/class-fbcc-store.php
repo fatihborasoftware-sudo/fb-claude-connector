@@ -9,7 +9,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 class FBCC_Store {
 
 	const DB_VERSION   = 1;
-	const OPT_SETTINGS = 'fbcc_settings';
+	const OPT_SETTINGS = 'fbcc_connector_settings';
+	/** Before 1.2.2. Shared its name with other "fbcc" plugins (e.g. FB Cookie Consent) — read once to migrate, never written. */
+	const OPT_SETTINGS_OLD = 'fbcc_settings';
 	const OPT_CLIENTS  = 'fbcc_clients';
 	const OPT_AGENT    = 'fbcc_agent_user';
 	const OPT_DB       = 'fbcc_db_version';
@@ -148,8 +150,26 @@ class FBCC_Store {
 	}
 
 	public static function settings() {
-		$s = get_option( self::OPT_SETTINGS, array() );
-		return wp_parse_args( is_array( $s ) ? $s : array(), self::defaults() );
+		$s = get_option( self::OPT_SETTINGS, null );
+		if ( ! is_array( $s ) ) {
+			$s = self::migrate_settings();
+		}
+		return wp_parse_args( $s, self::defaults() );
+	}
+
+	/**
+	 * 1.2.2: settings moved from "fbcc_settings" to "fbcc_connector_settings". The old row is
+	 * only copied when it really is ours (it has a valid "level"); another plugin's
+	 * "fbcc_settings" is left untouched.
+	 */
+	private static function migrate_settings() {
+		$s   = array();
+		$old = get_option( self::OPT_SETTINGS_OLD, null );
+		if ( is_array( $old ) && isset( $old['level'] ) && isset( self::levels()[ $old['level'] ] ) ) {
+			$s = array_intersect_key( $old, self::defaults() );
+		}
+		add_option( self::OPT_SETTINGS, wp_parse_args( $s, self::defaults() ), '', false );
+		return $s;
 	}
 
 	public static function update_settings( array $changes ) {
