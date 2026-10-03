@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.0 — first public release (3 October 2026)
+
+- First public release on GitHub. Same code as 0.7.1, renumbered as version one.
+- Includes everything below: approved build plans, Watch Me Live with Claude's browser and voice briefs (English / Türkçe), theme, widget, CSS, menu, media and post tools, approvals, undo, activity log and the kill switch.
+
 ## 0.7.1
 
 - Polish after the live test: the "Claude is in" dock labels no longer wrap; the Link Claude’s browser page has a proper title (it showed as an empty page name in the activity log).

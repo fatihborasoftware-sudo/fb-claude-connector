@@ -7,7 +7,7 @@ Connect **Claude** to your **WordPress** site as a custom connector (a remote MC
 ![Approve once](images/banner-approve-once.webp)
 
 - **Approve once** — agree the mockups in chat, approve one *build plan*, and Claude builds the whole site: pages, blog posts, theme, menu and homepage.
-- **Watch Me Live** — follow every step on your own site, with a live view of the page Claude is changing. New in 0.7: see **Claude's own browser** live when it works on admin screens, and hear **spoken briefs** (English or Türkçe).
+- **Watch Me Live** — follow every step on your own site, with a live view of the page Claude is changing. Also: see **Claude's own browser** live when it works on admin screens, and hear **spoken briefs** (English or Türkçe).
 - **Safe by design** — its own Editor user, permission levels, an approval queue, a revision before every edit, an activity log and a kill switch.
 
 Live demo and docs: the **Engine Lab** test site was built entirely through this connector — one backup, one approval, then Claude built the rest.
@@ -23,7 +23,7 @@ Live demo and docs: the **Engine Lab** test site was built entirely through this
 ## Install
 
 1. **Back up your site first** (for example with WPvivid).
-2. Download [`dist/fb-claude-connector-0.7.1.zip`](dist/fb-claude-connector-0.7.1.zip).
+2. Download **fb-claude-connector-1.0.0.zip** from the [latest release](https://github.com/fatihborasoftware-sudo/fb-claude-connector/releases/latest) (or from [`dist/`](dist/fb-claude-connector-1.0.0.zip)).
 3. In WordPress go to **Plugins → Add New → Upload Plugin**, choose the zip and activate it. A new screen appears: **Claude Connection**.
 4. Open **Claude Connection → Setup**, click **Run server check**, then **Run full test**. It should report `initialize: 200` and the number of tools.
 
@@ -57,7 +57,7 @@ Claude never sees your password. It receives a key you can revoke at any time.
 
 A **build plan** replaces the separate approvals for everything it lists. Anything outside the plan still asks.
 
-## Tools (0.7.1)
+## Tools (1.0.0)
 
 **Read:** `site_health`, `content_list`, `content_get`, `plugins_list`, `media_list`, `backup_status`, `theme_settings_get`, `activity_recent`, `approvals_list`, `build_plan_status`, `task_status`
 
@@ -75,8 +75,8 @@ A **build plan** replaces the separate approvals for everything it lists. Anythi
 
 - the current step and the whole plan, reported by Claude with `task_status`
 - your site at full size — still clickable — with Claude's changes outlined in orange
-- **Claude's browser** (0.7+): when Claude must use a screen no tool covers, it first opens *Link Claude's browser* and clicks **Link**. Watch Me Live then mirrors that browser: the page it is on, an orange marker on what it clicked, and a view-only copy of the screen. Only the linked browser reports; scripts, passwords, hidden fields and nonces are never copied. The link ends when the task is done, when you click Unlink, or after 2 hours.
-- **Voice briefs** (0.7+): a start brief, each step, *waiting for you* and a finish brief, read aloud by your browser. Choose what to read, English or Türkçe, the voice and the speed.
+- **Claude's browser**: when Claude must use a screen no tool covers, it first opens *Link Claude's browser* and clicks **Link**. Watch Me Live then mirrors that browser: the page it is on, an orange marker on what it clicked, and a view-only copy of the screen. Only the linked browser reports; scripts, passwords, hidden fields and nonces are never copied. The link ends when the task is done, when you click Unlink, or after 2 hours.
+- **Voice briefs**: a start brief, each step, *waiting for you* and a finish brief, read aloud by your browser. Choose what to read, English or Türkçe, the voice and the speed.
 - approvals you can approve or reject in place, and a full activity feed.
 
 ## Safety

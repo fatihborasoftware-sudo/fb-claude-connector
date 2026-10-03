@@ -1,5 +1,5 @@
 === FB AI Engine – Claude Connector ===
-Version: 0.7.1
+Version: 1.0.0
 Requires at least: 6.4
 Requires PHP: 7.4
 License: GPLv2 or later
@@ -75,3 +75,6 @@ SetEnvIf Authorization "(.+)" HTTP_AUTHORIZATION=$1
 
 0.7.1
 - Polish after the live test: the "Claude is in" dock labels no longer wrap; the Link Claude’s browser page has a proper title (it showed as an empty page name in the activity log).
+
+1.0.0
+- First public release (github.com/fatihborasoftware-sudo/fb-claude-connector). Same features as 0.7.1: build plans, Watch Me Live with Claude's browser and voice briefs, theme and site tools, approvals, undo and the kill switch.
