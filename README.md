@@ -93,6 +93,8 @@ A **build plan** replaces the separate approvals for everything it lists. Anythi
 
 Only free plugins and themes from WordPress.org can be installed this way.
 
+A complete worked example — the prompt and the build kit for an 8-page clinic site — is in [`examples/nova/`](examples/nova/).
+
 ## Safety
 
 1. **Its own user** — Claude acts as `claude-agent` (Editor), never as you; that user cannot sign in with a password.
@@ -109,6 +111,7 @@ Only free plugins and themes from WordPress.org can be installed this way.
 plugin/fb-claude-connector/   the WordPress plugin (source)
 dist/                         ready-to-upload plugin zip
 images/                       free banners and pictures (CC0)
+examples/                     worked examples (build prompt + kit)
 CHANGELOG.md                  what changed in each version
 ```
 
