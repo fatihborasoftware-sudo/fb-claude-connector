@@ -12,8 +12,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class FBCC_BuildTools {
 
+	const JOB = 'fbcc_backup_job';
+
 	public static function init() {
 		add_filter( 'fbcc_tools', array( __CLASS__, 'tools' ), 7 );
+		// Background runner for WPvivid backups (started by backup_create).
+		add_action( 'wp_ajax_nopriv_fbcc_run_backup', array( __CLASS__, 'ajax_run_backup' ) );
+		add_action( 'wp_ajax_fbcc_run_backup', array( __CLASS__, 'ajax_run_backup' ) );
+		add_action( 'fbcc_run_backup_cron', array( __CLASS__, 'run_backup_task' ) );
+		add_action( 'admin_post_fbcc_backup_now', array( __CLASS__, 'action_backup_now' ) );
 	}
 
 	private static function obj( array $props, array $required = array() ) {
@@ -51,9 +58,35 @@ class FBCC_BuildTools {
 			) ),
 			'run'         => array( __CLASS__, 'media_list' ),
 		);
+		$t['backup_create'] = array(
+			'title'       => 'Take a backup',
+			'description' => 'Start a full WPvivid backup (database + files, kept on this server). It runs in the background — usually 1 to 3 minutes; follow it with backup_status until "running" is false and the latest backup is fresh. Take one before every build plan, plugin install or theme change.',
+			'level'       => 'editor',
+			'kind'        => 'write',
+			'schema'      => self::obj( array(
+				'what'   => array( 'type' => 'string', 'enum' => array( 'files+db', 'db', 'files' ), 'default' => 'files+db' ),
+				'reason' => array( 'type' => 'string' ),
+			), array( 'reason' ) ),
+			'run'         => array( __CLASS__, 'backup_create' ),
+		);
+		$t['media_upload_data'] = array(
+			'title'       => 'Upload an image from chat',
+			'description' => 'Put an image you made in this chat into the media library: send it as base64 (a data: URI is fine). jpg, png, webp or gif, at most 6 MB — prefer webp or jpg under 1 MB. Optionally attach it to a page/post and make it the featured image. Returns the id and url.',
+			'level'       => 'editor',
+			'kind'        => 'write',
+			'schema'      => self::obj( array(
+				'data'     => array( 'type' => 'string', 'description' => 'Base64 image data or a data: URI' ),
+				'filename' => array( 'type' => 'string', 'description' => 'e.g. banner-spring-sale.webp' ),
+				'alt'      => array( 'type' => 'string', 'description' => 'Alt text (describe the image)' ),
+				'title'    => array( 'type' => 'string' ),
+				'attach'   => array( 'type' => 'integer', 'description' => 'Page/post id to attach to' ),
+				'featured' => array( 'type' => 'boolean', 'default' => false ),
+			), array( 'data', 'filename', 'alt' ) ),
+			'run'         => array( __CLASS__, 'media_upload_data' ),
+		);
 		$t['backup_status'] = array(
 			'title'       => 'Backup status',
-			'description' => 'The latest backup made with WPvivid on this site: when, what kind and how old. Check it before any build or plugin change; if it is old, ask the owner for a fresh backup (or take one in the linked browser so the owner can watch).',
+			'description' => 'The latest WPvivid backup on this site (when, kind, age) and whether a backup is running right now. Check it before any build or plugin change; if it is not fresh, run backup_create first.',
 			'level'       => 'read',
 			'kind'        => 'read',
 			'schema'      => self::obj( array() ),
@@ -194,13 +227,25 @@ class FBCC_BuildTools {
 
 	/* -- backups ---------------------------------------------------------- */
 
-	public static function backup_status() {
+	public static function wpvivid_ready() {
+		global $wpvivid_plugin;
+		return class_exists( 'WPvivid_Interface_MainWP' ) && is_object( $wpvivid_plugin ) && isset( $wpvivid_plugin->backup2 ) && has_filter( 'wpvivid_prepare_backup_mainwp' );
+	}
+
+	private static function wpvivid_running() {
+		global $wpvivid_plugin;
+		try {
+			return self::wpvivid_ready() && $wpvivid_plugin->backup2->is_tasks_backup_running();
+		} catch ( \Throwable $e ) {
+			return false;
+		}
+	}
+
+	/** Latest backup from WPvivid's own list (create_time is a Unix timestamp). */
+	public static function latest_backup() {
 		$list = get_option( 'wpvivid_backup_list', null );
 		if ( ! is_array( $list ) ) {
-			return array(
-				'found'   => false,
-				'message' => 'No WPvivid backup list was found. If another backup plugin or the hosting panel makes the backups, ask the owner to confirm a fresh one.',
-			);
+			return null;
 		}
 		$latest = null;
 		foreach ( $list as $id => $b ) {
@@ -209,19 +254,234 @@ class FBCC_BuildTools {
 				$latest = array( 't' => $t, 'type' => (string) ( $b['type'] ?? '' ), 'id' => (string) $id );
 			}
 		}
-		if ( ! $latest ) {
-			return array( 'found' => true, 'count' => count( $list ), 'latest' => null, 'message' => 'WPvivid has no backups listed.' );
+		return $latest ? array_merge( $latest, array( 'count' => count( $list ) ) ) : array( 't' => 0, 'count' => count( $list ) );
+	}
+
+	public static function backup_status() {
+		$latest  = self::latest_backup();
+		$running = self::wpvivid_running();
+		$job     = get_option( self::JOB );
+		if ( null === $latest && ! self::wpvivid_ready() ) {
+			return array(
+				'found'   => false,
+				'message' => 'WPvivid is not active. If another plugin or the hosting panel makes the backups, ask the owner to confirm a fresh one.',
+			);
 		}
-		// WPvivid stores create_time in the site's local time; compare like with like.
-		$age_h = max( 0, ( current_time( 'timestamp' ) - $latest['t'] ) / HOUR_IN_SECONDS );
+		$out = array(
+			'found'   => true,
+			'running' => $running,
+			'count'   => $latest ? (int) $latest['count'] : 0,
+			'page'    => admin_url( 'admin.php?page=WPvivid' ),
+		);
+		if ( $latest && $latest['t'] ) {
+			$age             = max( 0, time() - $latest['t'] ) / HOUR_IN_SECONDS;
+			$out['latest']   = wp_date( 'Y-m-d H:i', $latest['t'] );
+			$out['type']     = $latest['type'];
+			$out['age_hours'] = round( $age, 2 );
+			$out['fresh']    = $age < 2;
+		} else {
+			$out['latest'] = null;
+			$out['fresh']  = false;
+		}
+		if ( is_array( $job ) && time() - (int) $job['started'] < DAY_IN_SECONDS ) {
+			$done             = $latest && $latest['t'] >= (int) $job['started'] - 5;
+			$out['last_job']  = array(
+				'started' => wp_date( 'Y-m-d H:i:s', (int) $job['started'] ),
+				'state'   => $done ? 'finished' : ( $running ? 'running' : ( time() - (int) $job['started'] > 900 ? 'failed or stalled — check WPvivid → Logs' : 'starting' ) ),
+			);
+		}
+		return $out;
+	}
+
+	/* -- take a backup (WPvivid) --------------------------------------- */
+
+	public static function backup_create( $a ) {
+		if ( ! self::wpvivid_ready() ) {
+			return new WP_Error( 'no_wpvivid', 'WPvivid Backup is not active on this site, so the connector cannot take a backup. Ask the owner to make one.' );
+		}
+		if ( self::wpvivid_running() ) {
+			return array( 'started' => false, 'running' => true, 'message' => 'A backup is already running. Follow it with backup_status.' );
+		}
+		$what = in_array( $a['what'] ?? 'files+db', array( 'files+db', 'db', 'files' ), true ) ? ( $a['what'] ?? 'files+db' ) : 'files+db';
+		$r    = self::start_wpvivid( $what );
+		if ( is_wp_error( $r ) ) {
+			return $r;
+		}
 		return array(
-			'found'      => true,
-			'count'      => count( $list ),
-			'latest'     => wp_date( 'Y-m-d H:i', $latest['t'] - (int) ( get_option( 'gmt_offset' ) * HOUR_IN_SECONDS ) ),
-			'type'       => $latest['type'],
-			'age_hours'  => round( $age_h, 1 ),
-			'fresh'      => $age_h < 2,
-			'page'       => admin_url( 'admin.php?page=WPvivid' ),
+			'_summary' => 'Backup started (WPvivid, ' . $what . ')' . ( ! empty( $a['reason'] ) ? ' — ' . sanitize_text_field( $a['reason'] ) : '' ),
+			'_undo'    => admin_url( 'admin.php?page=WPvivid' ),
+			'started'  => true,
+			'task_id'  => $r,
+			'message'  => 'Backup is running in the background. Call backup_status in about a minute; it is done when "running" is false and "fresh" is true.',
+		);
+	}
+
+	/** Prepares the WPvivid task and hands it to a background request. Returns the task id. */
+	public static function start_wpvivid( $what = 'files+db' ) {
+		$prev_user = get_current_user_id();
+		$job_user  = $prev_user && user_can( $prev_user, 'manage_options' ) ? $prev_user : self::an_admin();
+		wp_set_current_user( $job_user );
+		try {
+			$ret = apply_filters( 'wpvivid_prepare_backup_mainwp', array(
+				'backup' => array(
+					'backup_files' => $what,
+					'local'        => '1',
+					'remote'       => '0',
+					'ismerge'      => '1',
+					'lock'         => '0',
+					'type'         => 'Manual',
+				),
+			) );
+		} catch ( \Throwable $e ) {
+			$ret = array( 'error' => $e->getMessage() );
+		}
+		wp_set_current_user( $prev_user );
+		if ( ! is_array( $ret ) || empty( $ret['task_id'] ) || ( isset( $ret['result'] ) && 'success' !== $ret['result'] ) ) {
+			return new WP_Error( 'backup_prepare', 'WPvivid did not start: ' . ( is_array( $ret ) && ! empty( $ret['error'] ) ? wp_strip_all_tags( (string) $ret['error'] ) : 'unknown reason' ) );
+		}
+		$task = sanitize_key( $ret['task_id'] );
+		$key  = wp_generate_password( 32, false, false );
+		update_option( self::JOB, array( 'task' => $task, 'started' => time(), 'key_hash' => wp_hash_password( $key ), 'user' => $job_user, 'what' => $what ), false );
+
+		// Kick off the backup in its own request (like WPvivid's own button), with wp-cron as a fallback.
+		wp_remote_post( admin_url( 'admin-ajax.php' ), array(
+			'timeout'   => 0.01,
+			'blocking'  => false,
+			'sslverify' => apply_filters( 'https_local_ssl_verify', false ),
+			'body'      => array( 'action' => 'fbcc_run_backup', 'task' => $task, 'key' => $key ),
+		) );
+		wp_schedule_single_event( time() + 45, 'fbcc_run_backup_cron', array( $task ) );
+		return $task;
+	}
+
+	private static function an_admin() {
+		$u = get_users( array( 'role' => 'administrator', 'number' => 1, 'fields' => 'ID' ) );
+		return $u ? (int) $u[0] : 0;
+	}
+
+	public static function ajax_run_backup() {
+		$job  = get_option( self::JOB );
+		$task = isset( $_POST['task'] ) ? sanitize_key( wp_unslash( $_POST['task'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification -- one-time key below
+		$key  = isset( $_POST['key'] ) ? (string) wp_unslash( $_POST['key'] ) : ''; // phpcs:ignore
+		if ( ! is_array( $job ) || $task !== $job['task'] || empty( $job['key_hash'] ) || ! wp_check_password( $key, $job['key_hash'] ) ) {
+			wp_die( '', '', array( 'response' => 403 ) );
+		}
+		$job['key_hash'] = '';
+		update_option( self::JOB, $job, false ); // the key works once
+		self::run_backup_task( $task );
+		wp_die();
+	}
+
+	public static function run_backup_task( $task ) {
+		$job = get_option( self::JOB );
+		if ( ! is_array( $job ) || $task !== $job['task'] || ! empty( $job['ran'] ) || ! self::wpvivid_ready() ) {
+			return;
+		}
+		$job['ran'] = time();
+		update_option( self::JOB, $job, false );
+		ignore_user_abort( true );
+		wp_set_current_user( (int) $job['user'] );
+		try {
+			apply_filters( 'wpvivid_backup_now_mainwp', array( 'task_id' => $task ) );
+		} catch ( \Throwable $e ) {
+			FBCC_Store::log( 'backup_create', 'Backup failed: ' . $e->getMessage(), 'error' );
+		}
+	}
+
+	/** Overview card: latest backup + "Take a backup now". */
+	public static function card() {
+		$st = self::backup_status();
+		echo '<section class="fbcc-card"><div class="fbcc-head"><h2>Backups</h2>';
+		if ( ! empty( $st['found'] ) && isset( $st['fresh'] ) ) {
+			echo '<span class="fbcc-pill ' . ( $st['fresh'] ? 'fbcc-green' : 'fbcc-red' ) . '">' . ( $st['fresh'] ? 'Fresh' : 'Old' ) . '</span>';
+		}
+		echo '</div>';
+		if ( empty( $st['found'] ) ) {
+			echo '<p class="fbcc-muted">' . esc_html( $st['message'] ) . '</p></section>';
+			return;
+		}
+		echo '<dl class="fbcc-dl"><dt>Latest backup</dt><dd>' . ( $st['latest'] ? esc_html( $st['latest'] ) . ' · ' . esc_html( human_time_diff( time() - (int) round( $st['age_hours'] * HOUR_IN_SECONDS ) ) ) : 'No backup found.' ) . '</dd></dl>';
+		if ( ! empty( $st['running'] ) ) {
+			echo '<p><strong>A backup is running…</strong></p>';
+		} else {
+			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"><input type="hidden" name="action" value="fbcc_backup_now">';
+			wp_nonce_field( 'fbcc_backup_now' );
+			echo '<p><button class="button">Take a backup now</button> <a href="' . esc_url( $st['page'] ) . '">WPvivid ↗</a></p></form>';
+		}
+		echo '</section>';
+	}
+
+	public static function action_backup_now() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( 'Not allowed.', 403 );
+		}
+		check_admin_referer( 'fbcc_backup_now' );
+		$r = self::start_wpvivid( 'files+db' );
+		FBCC_Store::log( 'backup_create', is_wp_error( $r ) ? 'Backup could not start: ' . $r->get_error_message() : 'Backup started by ' . wp_get_current_user()->display_name, is_wp_error( $r ) ? 'error' : 'done' );
+		wp_safe_redirect( admin_url( 'admin.php?page=fbcc' ) );
+		exit;
+	}
+
+	/* -- image from chat ------------------------------------------------- */
+
+	public static function media_upload_data( $a ) {
+		if ( ! current_user_can( 'upload_files' ) ) {
+			return new WP_Error( 'forbidden', 'claude-agent may not upload files.' );
+		}
+		$data = (string) $a['data'];
+		if ( preg_match( '#^data:image/[a-z0-9.+-]+;base64,#i', $data, $m ) ) {
+			$data = substr( $data, strlen( $m[0] ) );
+		}
+		$bin = base64_decode( preg_replace( '/\s+/', '', $data ), true );
+		if ( false === $bin || strlen( $bin ) < 64 ) {
+			return new WP_Error( 'bad_data', 'data is not valid base64 image data.' );
+		}
+		if ( strlen( $bin ) > 6 * MB_IN_BYTES ) {
+			return new WP_Error( 'too_big', 'Image is larger than 6 MB.' );
+		}
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		require_once ABSPATH . 'wp-admin/includes/media.php';
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+		$tmp = wp_tempnam( 'fbcc-img' );
+		if ( ! $tmp || false === file_put_contents( $tmp, $bin ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions
+			return new WP_Error( 'tmp', 'Could not write a temporary file.' );
+		}
+		$mime = function_exists( 'wp_get_image_mime' ) ? wp_get_image_mime( $tmp ) : '';
+		$ext  = array( 'image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', 'image/gif' => 'gif' );
+		if ( ! isset( $ext[ $mime ] ) ) {
+			@unlink( $tmp ); // phpcs:ignore
+			return new WP_Error( 'not_image', 'That data is not a jpg, png, webp or gif image.' );
+		}
+		$base = sanitize_file_name( pathinfo( (string) $a['filename'], PATHINFO_FILENAME ) );
+		$name = ( $base ? $base : 'image' ) . '.' . $ext[ $mime ];
+		$attach = ! empty( $a['attach'] ) ? (int) $a['attach'] : 0;
+		if ( $attach && ! current_user_can( 'edit_post', $attach ) ) {
+			$attach = 0;
+		}
+		$id = media_handle_sideload( array( 'name' => $name, 'tmp_name' => $tmp ), $attach, sanitize_text_field( (string) ( $a['title'] ?? '' ) ) );
+		if ( is_wp_error( $id ) ) {
+			@unlink( $tmp ); // phpcs:ignore
+			return $id;
+		}
+		update_post_meta( $id, '_wp_attachment_image_alt', sanitize_text_field( (string) $a['alt'] ) );
+		$featured = false;
+		if ( $attach && ! empty( $a['featured'] ) ) {
+			if ( 'publish' === get_post_status( $attach ) ) {
+				$res      = self::post_settings( array( 'id' => $attach, 'featured_media' => $id, 'reason' => 'Featured image uploaded from chat' ) );
+				$featured = is_array( $res ) && empty( $res['queued'] ) ? true : 'waiting for approval';
+			} else {
+				set_post_thumbnail( $attach, $id );
+				$featured = true;
+			}
+		}
+		$meta = wp_get_attachment_metadata( $id );
+		return array(
+			'_summary' => 'Uploaded image “' . $name . '” from chat' . ( $attach ? ' to #' . $attach : '' ),
+			'_undo'    => admin_url( 'post.php?post=' . $id . '&action=edit' ),
+			'id'       => $id,
+			'url'      => wp_get_attachment_url( $id ),
+			'size'     => is_array( $meta ) && ! empty( $meta['width'] ) ? $meta['width'] . '×' . $meta['height'] : '',
+			'featured' => $featured,
 		);
 	}
 

@@ -8,6 +8,8 @@ Connect **Claude** to your **WordPress** site as a custom connector (a remote MC
 
 - **Approve once** — agree the mockups in chat, approve one *build plan*, and Claude builds the whole site: pages, blog posts, theme, menu and homepage.
 - **Watch Me Live** — follow every step on your own site, with a live view of the page Claude is changing. Also: see **Claude's own browser** live when it works on admin screens, and hear **spoken briefs** (English or Türkçe).
+- **Checks its own work** — takes a WPvivid backup before building and runs a site check (broken links, missing images, stale CDN copies) before calling a job done.
+- **English or Türkçe** — every connector screen in either language.
 - **Safe by design** — its own Editor user, permission levels, an approval queue, a revision before every edit, an activity log and a kill switch.
 
 Live demo and docs: the **Engine Lab** test site was built entirely through this connector — one backup, one approval, then Claude built the rest.
@@ -23,7 +25,7 @@ Live demo and docs: the **Engine Lab** test site was built entirely through this
 ## Install
 
 1. **Back up your site first** (for example with WPvivid).
-2. Download **fb-claude-connector-1.0.0.zip** from the [latest release](https://github.com/fatihborasoftware-sudo/fb-claude-connector/releases/latest) (or from [`dist/`](dist/fb-claude-connector-1.0.0.zip)).
+2. Download **fb-claude-connector-1.1.1.zip** from the [latest release](https://github.com/fatihborasoftware-sudo/fb-claude-connector/releases/latest) (or from [`dist/`](dist/fb-claude-connector-1.1.1.zip)).
 3. In WordPress go to **Plugins → Add New → Upload Plugin**, choose the zip and activate it. A new screen appears: **Claude Connection**.
 4. Open **Claude Connection → Setup**, click **Run server check**, then **Run full test**. It should report `initialize: 200` and the number of tools.
 
@@ -57,11 +59,11 @@ Claude never sees your password. It receives a key you can revoke at any time.
 
 A **build plan** replaces the separate approvals for everything it lists. Anything outside the plan still asks.
 
-## Tools (1.0.0)
+## Tools (1.1.1)
 
-**Read:** `site_health`, `content_list`, `content_get`, `plugins_list`, `media_list`, `backup_status`, `theme_settings_get`, `activity_recent`, `approvals_list`, `build_plan_status`, `task_status`
+**Read:** `site_health`, `site_check`, `content_list`, `content_get`, `plugins_list`, `media_list`, `backup_status`, `theme_settings_get`, `activity_recent`, `approvals_list`, `build_plan_status`, `task_status`
 
-**Write:** `content_create_draft`, `content_update`, `content_publish`, `media_upload`, `post_settings_set`, `menu_set`, `site_settings`, `build_plan_submit`
+**Write:** `backup_create`, `content_create_draft`, `content_update`, `content_publish`, `media_upload`, `media_upload_data`, `post_settings_set`, `menu_set`, `site_settings`, `build_plan_submit`
 
 **Theme (approval or build plan):** `theme_settings_set`, `widgets_set`, `custom_css_set`
 

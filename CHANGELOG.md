@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.1.1 (3 October 2026)
+
+- site_check compares a fresh copy of each page with what visitors actually get and reports pages where a CDN or page cache still serves an old version ("Visitors see an old cached copy" — purge the cache).
+
+## 1.1.0 (3 October 2026)
+
+- **backup_create** — Claude takes a full WPvivid backup itself (runs in the background); **backup_status** shows whether a backup is running and the result of the last one. Overview has a Backups card with "Take a backup now".
+- **media_upload_data** — images Claude makes in chat go straight into the media library (base64, up to 6 MB), optionally as a page's featured image.
+- **site_check** — opens every published page and post like a visitor and reports broken links and images, block/shortcode/CSS code showing as text, missing alt text, missing or repeated H1 and blog posts without a featured image. Overview has a Site check card.
+- **Türkçe interface** — Claude Connection, Watch Me Live, the link page, the sign-in page and the admin bar badge in English or Turkish, per administrator (Auto follows the WordPress profile language).
+- Fix: backup age is measured correctly whatever the site's time zone.
+
 ## 1.0.0 — first public release (3 October 2026)
 
 - First public release on GitHub. Same code as 0.7.1, renumbered as version one.

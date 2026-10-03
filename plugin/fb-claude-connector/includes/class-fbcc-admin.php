@@ -218,13 +218,13 @@ class FBCC_Admin {
 
 	private static function bar_text( $task, $pending ) {
 		if ( $task ) {
-			$s = 'Claude is working';
+			$s = FBCC_I18n::t( 'Claude is working' );
 			if ( ! empty( $task['total'] ) && $task['total'] > 1 ) {
-				$s .= ' · step ' . (int) $task['step'] . ' of ' . (int) $task['total'];
+				$s .= ' · ' . sprintf( FBCC_I18n::t( 'step %1$s of %2$s' ), (int) $task['step'], (int) $task['total'] );
 			}
 			return $s;
 		}
-		return $pending ? 'Claude · ' . $pending . ' waiting for approval' : '';
+		return $pending ? sprintf( FBCC_I18n::t( 'Claude · %s waiting for approval' ), (int) $pending ) : '';
 	}
 
 	public static function bar_script() {
@@ -246,10 +246,11 @@ class FBCC_Admin {
 (function(){
 	var li=document.getElementById('wp-admin-bar-fbcc-live'); if(!li||!window.fetch) return;
 	var txt=li.querySelector('.fbcc-txt');
+	var W=<?php echo wp_json_encode( FBCC_I18n::t( 'Claude is working' ) ); ?>, S=<?php echo wp_json_encode( FBCC_I18n::t( 'step %1$s of %2$s' ) ); ?>, P=<?php echo wp_json_encode( FBCC_I18n::t( 'Claude · %s waiting for approval' ) ); ?>;
 	function paint(d){
 		var t='';
-		if(d.task){ t='Claude is working'; if(d.task.total>1){ t+=' · step '+d.task.step+' of '+d.task.total; } if(d.task.note){ li.title=d.task.title+' — '+d.task.note; } }
-		else if(d.pending){ t='Claude · '+d.pending+' waiting for approval'; li.title=''; }
+		if(d.task){ t=W; if(d.task.total>1){ t+=' · '+S.replace('%1$s',d.task.step).replace('%2$s',d.task.total); } if(d.task.note){ li.title=d.task.title+' — '+d.task.note; } }
+		else if(d.pending){ t=P.replace('%s',d.pending); li.title=''; }
 		txt.textContent=t;
 		li.className=(t?'fbcc-on':'fbcc-off')+(d.task?' fbcc-working':'');
 	}
@@ -271,6 +272,10 @@ class FBCC_Admin {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
+		FBCC_I18n::render( array( __CLASS__, 'render_page' ) );
+	}
+
+	public static function render_page() {
 		$tab  = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'overview'; // phpcs:ignore
 		$tabs = array(
 			'overview'  => 'Overview',
@@ -296,7 +301,7 @@ class FBCC_Admin {
 		}
 		echo '<span class="fbcc-pill fbcc-purple">' . esc_html( self::level_name( $s['level'] ) ) . '</span>';
 		echo '<a class="button button-primary fbcc-watch" href="' . esc_url( FBCC_Live::url() ) . '">▶ Watch Claude live</a>';
-		echo '<span class="fbcc-ver">FB AI Engine · Claude Connector ' . esc_html( FBCC_VERSION ) . '</span></div>';
+		echo '<span class="fbcc-ver">FB AI Engine · Claude Connector ' . esc_html( FBCC_VERSION ) . '</span>' . FBCC_I18n::switcher() . '</div>'; // phpcs:ignore
 
 		if ( isset( $_GET['fbcc_msg'] ) ) { // phpcs:ignore
 			$type = isset( $_GET['fbcc_t'] ) ? sanitize_key( $_GET['fbcc_t'] ) : 'success'; // phpcs:ignore
@@ -341,6 +346,10 @@ class FBCC_Admin {
 		$by     = $c['session'] ? get_userdata( (int) $c['session']->user_id ) : null;
 
 		FBCC_Plan::card();
+		echo '<div class="fbcc-grid2">';
+		FBCC_BuildTools::card();
+		FBCC_SiteCheck::card();
+		echo '</div>';
 		FBCC_Browser::card();
 
 		if ( $task ) {

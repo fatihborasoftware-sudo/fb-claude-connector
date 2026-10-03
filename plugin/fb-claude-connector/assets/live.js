@@ -13,7 +13,9 @@
 	var lastBrowser = { time: 0, url: '', title: '' }, lastConnectorTs = 0, screenSeq = 0, screenOn = false;
 	var snapshots = {};
 	var toastUrl = '';
-	var LEVELS = { read: 'Read-only', editor: 'Content editor', maintainer: 'Site maintainer' };
+	var I = C.i18n || {};
+	function L(s) { var a = arguments, t = (I && I[s]) || s, i = 1; return t.replace(/%s/g, function () { return a[i++]; }); }
+	var LEVELS = { read: L('Read-only'), editor: L('Content editor'), maintainer: L('Site maintainer') };
 
 	$('wl-host').textContent = C.site || '';
 
@@ -55,7 +57,7 @@
 	function showSpeak(text, live) {
 		$('wl-speak').hidden = !V.on || !text;
 		$('wl-speak-t').textContent = text ? '“' + text + '”' : '';
-		$('wl-speak-k').textContent = live ? (V.lang === 'tr' ? 'ŞU AN OKUNUYOR' : 'SPEAKING NOW') : (V.lang === 'tr' ? 'SON ÖZET' : 'LAST BRIEF');
+		$('wl-speak-k').textContent = live ? ((C.ui === 'tr' || V.lang === 'tr') ? 'ŞU AN OKUNUYOR' : 'SPEAKING NOW') : ((C.ui === 'tr' || V.lang === 'tr') ? 'SON ÖZET' : 'LAST BRIEF');
 		$('wl-speak').classList.toggle('is-live', !!live);
 	}
 	function next() {
@@ -84,7 +86,7 @@
 	var pop = $('wl-vpop');
 	function paintVoice() {
 		$('wl-voice').setAttribute('aria-pressed', V.on ? 'true' : 'false');
-		$('wl-voice-t').textContent = V.on ? tr().on : tr().off;
+		$('wl-voice-t').textContent = V.on ? (C.ui === 'tr' ? T.tr.on : tr().on) : (C.ui === 'tr' ? T.tr.off : tr().off);
 		$('v-on').checked = V.on;
 		Array.prototype.forEach.call(pop.querySelectorAll('[data-read]'), function (c) { c.checked = V.read[c.getAttribute('data-read')] !== false; });
 		$('v-lang').value = V.lang;
@@ -152,7 +154,7 @@
 		var b = $('wl-follow');
 		b.classList.toggle('is-on', on);
 		b.setAttribute('aria-pressed', on ? 'true' : 'false');
-		b.querySelector('span').textContent = on ? 'Following Claude' : 'Browsing freely';
+		b.querySelector('span').textContent = on ? L('Following Claude') : L('Browsing freely');
 		if (on) { hideToast(); } else { showScreen(false); }
 	}
 	$('wl-follow').addEventListener('click', function () {
@@ -218,7 +220,7 @@
 					el.classList.add('fbcc-chg');
 					var tag = doc.createElement('span');
 					tag.className = 'fbcc-tag';
-					tag.textContent = 'CLAUDE CHANGED THIS · ' + time;
+					tag.textContent = L('CLAUDE CHANGED THIS') + ' · ' + time;
 					el.appendChild(tag);
 					first = first || el;
 				}
@@ -239,7 +241,7 @@
 	$('wl-toast-x').addEventListener('click', hideToast);
 
 	function siteChanged(title, url) {
-		if (follow) { go(url, true); } else { toast('Claude just updated ' + title, url); }
+		if (follow) { go(url, true); } else { toast(L('Claude just updated %s', title), url); }
 	}
 
 	/* ---------- dock + feed ---------- */
@@ -247,13 +249,13 @@
 		if (win === 'plugins') { win = 'site'; }
 		if (win === 'admin' && lastBrowser.title) {
 			var a = document.querySelector('.wl-dock-i[data-win="admin"]');
-			if (a) { a.lastChild.textContent = 'Admin · ' + lastBrowser.title.replace(/ \(admin\)$/, '').slice(0, 28); }
+			if (a) { a.lastChild.textContent = L('Admin') + ' · ' + lastBrowser.title.replace(/ \(admin\)$/, '').slice(0, 28); }
 		}
 		Array.prototype.forEach.call(document.querySelectorAll('.wl-dock-i'), function (d) {
 			d.classList.toggle('is-on', d.getAttribute('data-win') === win);
 		});
 	}
-	var RES = { browser: 'browser', done: 'done', read: 'read', queued: 'waiting for you', ready: 'ready to launch', blocked: 'blocked', error: 'error', info: 'info' };
+	var RES = { browser: L('browser'), done: L('done'), read: L('read'), queued: L('waiting for you'), ready: L('ready to launch'), blocked: L('blocked'), error: L('error'), info: L('info') };
 	function feedItem(ev) {
 		var li = document.createElement('li');
 		var t = document.createElement('time'); t.textContent = ev.time;
@@ -288,7 +290,7 @@
 			else if (V.read.click) { var m = ev.summary.match(/^Clicked “(.*?)”/); if (m) { say(tr().click(m[1]), 'click'); } }
 		}
 		if (ev.result === 'done' && ['menu_set', 'site_settings', 'theme_settings_set', 'widgets_set'].indexOf(ev.tool) > -1) {
-			siteChanged('the site settings', follow ? (C.home || curUrl) : (C.home || curUrl));
+			siteChanged(L('the site settings'), follow ? (C.home || curUrl) : (C.home || curUrl));
 		}
 		setTimeout(function () { playing = false; play(); }, queue.length > 6 ? 500 : 1200);
 	}
@@ -300,7 +302,7 @@
 			method: 'POST', credentials: 'same-origin',
 			headers: { 'X-WP-Nonce': C.nonce, 'Content-Type': 'application/json' },
 			body: JSON.stringify({ id: id, decision: decision })
-		}).then(function (r) { return r.json(); }).catch(function () { return { ok: false, message: 'Network error — try again.' }; });
+		}).then(function (r) { return r.json(); }).catch(function () { return { ok: false, message: L('Network error — try again.') }; });
 	}
 	function renderPending(list) {
 		$('wl-tab-n').textContent = list.length;
@@ -314,15 +316,15 @@
 		if (open.length > 1) {
 			var all = document.createElement('button');
 			all.type = 'button'; all.className = 'wl-btn wl-all';
-			all.textContent = 'Approve all ' + open.length + ' in order';
+			all.textContent = L('Approve all %s in order', open.length);
 			all.addEventListener('click', function () {
 				if (!allArmed) {
 					allArmed = true;
-					all.textContent = 'Click again to approve all ' + open.length;
-					setTimeout(function () { allArmed = false; all.textContent = 'Approve all ' + open.length + ' in order'; }, 3500);
+					all.textContent = L('Click again to approve all %s', open.length);
+					setTimeout(function () { allArmed = false; all.textContent = L('Approve all %s in order', open.length); }, 3500);
 					return;
 				}
-				all.disabled = true; all.textContent = 'Approving…';
+				all.disabled = true; all.textContent = L('Approving…');
 				var chain = Promise.resolve();
 				open.forEach(function (p) { chain = chain.then(function () { return decide(p.id, 'approve'); }); });
 				chain.then(function () { pendKey = ''; poll(); });
@@ -335,16 +337,16 @@
 			if (p.reason) { var r = document.createElement('small'); r.textContent = p.reason; box.appendChild(r); }
 			if (p.lock) { var l = document.createElement('small'); l.className = 'bad'; l.textContent = p.lock; box.appendChild(l); }
 			var row = document.createElement('div'); row.className = 'wl-pend-row';
-			if (p.diff) { var a = document.createElement('a'); a.href = C.approve; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'View diff ↗'; row.appendChild(a); }
-			var no = document.createElement('button'); no.type = 'button'; no.className = 'wl-btn ghost'; no.textContent = 'Reject';
-			var yes = document.createElement('button'); yes.type = 'button'; yes.className = 'wl-btn'; yes.textContent = p.lock ? 'Approve (locked)' : 'Approve';
+			if (p.diff) { var a = document.createElement('a'); a.href = C.approve; a.target = '_blank'; a.rel = 'noopener'; a.textContent = L('View diff ↗'); row.appendChild(a); }
+			var no = document.createElement('button'); no.type = 'button'; no.className = 'wl-btn ghost'; no.textContent = L('Reject');
+			var yes = document.createElement('button'); yes.type = 'button'; yes.className = 'wl-btn'; yes.textContent = p.lock ? L('Approve (locked)') : L('Approve');
 			yes.disabled = !!p.lock;
 			function act(decision) {
 				yes.disabled = no.disabled = true;
-				(decision === 'approve' ? yes : no).textContent = decision === 'approve' ? 'Approving…' : 'Rejecting…';
+				(decision === 'approve' ? yes : no).textContent = decision === 'approve' ? L('Approving…') : L('Rejecting…');
 				decide(p.id, decision).then(function (res) {
 					var m = document.createElement('p'); m.className = 'wl-pend-msg ' + (res.ok ? 'ok' : 'bad'); m.textContent = res.message; box.appendChild(m);
-					if (!res.ok) { yes.disabled = !!p.lock; no.disabled = false; yes.textContent = 'Approve'; no.textContent = 'Reject'; }
+					if (!res.ok) { yes.disabled = !!p.lock; no.disabled = false; yes.textContent = L('Approve'); no.textContent = L('Reject'); }
 					setTimeout(function () { pendKey = ''; poll(); }, res.ok ? 900 : 0);
 				});
 			}
@@ -366,22 +368,22 @@
 		planKey = key;
 		box.hidden = false;
 		box.textContent = '';
-		var h = document.createElement('strong'); h.textContent = 'Approved plan #' + pl.id + ': ' + pl.title; box.appendChild(h);
+		var h = document.createElement('strong'); h.textContent = L('Approved plan #%s: %s', pl.id, pl.title); box.appendChild(h);
 		var s1 = document.createElement('small');
-		s1.textContent = pl.built + '/' + pl.pages + ' pages built · ' + pl.live + ' live · go live ' + (pl.launch === 'auto' ? 'automatically' : 'with one Launch click');
+		s1.textContent = L('%s/%s pages built · %s live · go live %s', pl.built, pl.pages, pl.live, pl.launch === 'auto' ? L('automatically') : L('with one Launch click'));
 		box.appendChild(s1);
-		var s2 = document.createElement('small'); s2.textContent = 'Inside this plan Claude does not need to ask you again.'; box.appendChild(s2);
+		var s2 = document.createElement('small'); s2.textContent = L('Inside this plan Claude does not need to ask you again.'); box.appendChild(s2);
 		if (pl.ready > 0) {
 			var b = document.createElement('button'); b.type = 'button'; b.className = 'wl-btn wl-all';
-			b.textContent = 'Launch ' + pl.ready + ' item(s) now';
+			b.textContent = L('Launch %s item(s) now', pl.ready);
 			b.addEventListener('click', function () {
-				b.disabled = true; b.textContent = 'Launching…';
+				b.disabled = true; b.textContent = L('Launching…');
 				fetch(C.launch, { method: 'POST', credentials: 'same-origin', headers: { 'X-WP-Nonce': C.nonce } })
 					.then(function (r) { return r.json(); })
 					.then(function (res) {
 						var m = document.createElement('p'); m.className = 'wl-pend-msg ' + (res.ok ? 'ok' : 'bad'); m.textContent = res.message; box.appendChild(m);
 						planKey = ''; setTimeout(poll, 600);
-						if (res.ok) { siteChanged('the whole site', C.home); }
+						if (res.ok) { siteChanged(L('the whole site'), C.home); }
 					});
 			});
 			box.appendChild(b);
@@ -451,13 +453,13 @@
 	function paint(d) {
 		var t = d.task;
 		root.classList.toggle('is-live', !!d.live);
-		$('wl-state').textContent = d.live ? 'LIVE' : 'IDLE';
+		$('wl-state').textContent = d.live ? L('LIVE') : L('IDLE');
 		if (t) {
 			var total = t.total || 1, step = t.step || 0;
-			$('wl-step').textContent = 'STEP ' + step + '/' + total;
+			$('wl-step').textContent = L('STEP') + ' ' + step + '/' + total;
 			$('wl-title').textContent = t.note || t.title;
 			$('wl-bar').style.width = Math.min(100, Math.round(100 * step / total)) + '%';
-			$('wl-plan-t').textContent = t.title || 'Working';
+			$('wl-plan-t').textContent = t.title || L('Working');
 			var plan = $('wl-plan'); plan.textContent = '';
 			(t.steps || []).forEach(function (line, i) {
 				var li = document.createElement('li');
@@ -479,15 +481,15 @@
 			} else if (!d.finished && lastFinish === null) { lastFinish = 0; }
 			lastTaskKey = '';
 			$('wl-step').textContent = '';
-			$('wl-title').textContent = 'Nothing is running. Start a task in Claude and watch it here.';
+			$('wl-title').textContent = L('Nothing is running. Start a task in Claude and watch it here.');
 			$('wl-bar').style.width = '0';
-			$('wl-plan-t').textContent = 'Waiting for a task';
+			$('wl-plan-t').textContent = L('Waiting for a task');
 		}
 		$('s-calls').textContent = d.stats.calls;
 		$('s-tokens').textContent = d.stats.tokens >= 1000 ? (d.stats.tokens / 1000).toFixed(1) + 'k' : d.stats.tokens;
 		$('s-wait').textContent = d.stats.waiting;
 		$('s-wait-chip').classList.toggle('has', d.stats.waiting > 0);
-		$('wl-level').textContent = (d.plan ? 'Plan #' + d.plan.id + ' · ' : '') + (LEVELS[d.level] || d.level) + (d.locks && d.locks.emergency ? ' · write lock on' : '') + (d.locks && d.locks.lab ? ' · lab lock on' : '');
+		$('wl-level').textContent = (d.plan ? L('Plan #%s · ', d.plan.id) : '') + (LEVELS[d.level] || d.level) + (d.locks && d.locks.emergency ? L(' · write lock on') : '') + (d.locks && d.locks.lab ? L(' · lab lock on') : '');
 
 		var waitingNow = d.pending.length + (d.plan ? d.plan.ready : 0);
 		if (waitingNow > lastPendCount && lastPendCount >= 0) { tab('approve'); }

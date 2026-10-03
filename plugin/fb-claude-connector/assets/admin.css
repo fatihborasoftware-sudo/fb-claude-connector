@@ -69,3 +69,6 @@
 .fbcc-plan-list li em { font-style: normal; color: #50575e; }
 .fbcc-plan-list li.built em { color: #8a4b08; }
 .fbcc-plan-list li.live em { color: #0f6b3a; font-weight: 600; }
+.fbcc-lang{display:inline-flex;align-items:center;margin-left:8px}
+.fbcc-lang select{min-height:30px;font-size:13px}
+#fbcc-site-check table{margin:8px 0}

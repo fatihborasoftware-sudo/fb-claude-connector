@@ -76,10 +76,10 @@ class FBCC_Live {
 		if ( 0 === strpos( $tool, 'content' ) || in_array( $tool, array( 'form_create', 'post_settings_set' ), true ) ) {
 			return 'pages';
 		}
-		if ( 0 === strpos( $tool, 'media' ) ) {
+		if ( 0 === strpos( $tool, 'media' ) || 0 === strpos( $tool, 'backup_' ) ) {
 			return 'media';
 		}
-		if ( in_array( $tool, array( 'menu_set', 'site_settings', 'theme_settings_set', 'theme_settings_get', 'widgets_set', 'plugins_install', 'custom_css_set' ), true ) ) {
+		if ( in_array( $tool, array( 'menu_set', 'site_settings', 'theme_settings_set', 'theme_settings_get', 'widgets_set', 'plugins_install', 'custom_css_set', 'site_check' ), true ) ) {
 			return 'site';
 		}
 		if ( in_array( $tool, array( 'approvals_list' ), true ) ) {
@@ -189,6 +189,8 @@ class FBCC_Live {
 			'voiceApi' => esc_url_raw( rest_url( FBCC_NS . '/claude/voice' ) ),
 			'linkPage' => FBCC_Browser::url(),
 			'name'     => wp_get_current_user()->first_name ? wp_get_current_user()->first_name : wp_get_current_user()->display_name,
+			'ui'       => FBCC_I18n::lang(),
+			'i18n'     => FBCC_I18n::js(),
 		) );
 	}
 
@@ -196,6 +198,10 @@ class FBCC_Live {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
+		FBCC_I18n::render( array( __CLASS__, 'render_page' ) );
+	}
+
+	public static function render_page() {
 		$dock = array( 'mind' => 'Mind Map', 'pages' => 'Pages', 'media' => 'Media', 'approvals' => 'Approvals', 'site' => 'Site', 'admin' => 'Admin' );
 		?>
 <div id="wl" class="wl" aria-live="polite">

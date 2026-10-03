@@ -1,5 +1,5 @@
 === FB AI Engine – Claude Connector ===
-Version: 1.0.0
+Version: 1.1.1
 Requires at least: 6.4
 Requires PHP: 7.4
 License: GPLv2 or later
@@ -77,4 +77,14 @@ SetEnvIf Authorization "(.+)" HTTP_AUTHORIZATION=$1
 - Polish after the live test: the "Claude is in" dock labels no longer wrap; the Link Claude’s browser page has a proper title (it showed as an empty page name in the activity log).
 
 1.0.0
-- First public release (github.com/fatihborasoftware-sudo/fb-claude-connector). Same features as 0.7.1: build plans, Watch Me Live with Claude's browser and voice briefs, theme and site tools, approvals, undo and the kill switch.
+- First public release on GitHub (same code as 0.7.1).
+
+1.1.0
+- backup_create: Claude takes a full WPvivid backup itself (runs in the background); backup_status now shows whether a backup is running and the result of the last one. Claude Connection → Overview has a Backups card with "Take a backup now".
+- media_upload_data: images Claude makes in chat go straight into the media library (base64, up to 6 MB), optionally as a page's featured image.
+- site_check: opens every published page and post like a visitor and reports broken links and images, block/shortcode/CSS code showing as text, missing alt text, missing or repeated H1 and blog posts without a featured image. Also a Site check card with "Run site check".
+- Türkçe interface: Claude Connection, Watch Me Live, the link page, the sign-in page and the admin bar badge in English or Turkish — per administrator (Auto follows the WordPress profile language).
+- Fix: backup age is now measured correctly whatever the site's time zone.
+
+1.1.1
+- site_check compares a fresh copy of each page with what visitors actually get and reports pages where a CDN or page cache still serves an old version ("Visitors see an old cached copy" — purge the cache).

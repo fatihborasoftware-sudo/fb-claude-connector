@@ -351,7 +351,7 @@ class FBCC_OAuth {
 
 		// Errors we must NOT redirect for (unknown client / bad redirect).
 		if ( ! $client || ! in_array( $args['redirect_uri'], $client['redirect_uris'], true ) ) {
-			self::page( 'Connection request not valid', '<p>This request did not come from a registered client, or its return address does not match. Nothing was shared.</p>' );
+			self::page( FBCC_I18n::t( 'Connection request not valid' ), '<p>' . esc_html( FBCC_I18n::t( 'This request did not come from a registered client, or its return address does not match. Nothing was shared.' ) ) . '</p>' );
 		}
 
 		$back = function ( array $q ) use ( $args ) {
@@ -370,7 +370,7 @@ class FBCC_OAuth {
 			$back( array( 'error' => 'invalid_request', 'error_description' => 'PKCE S256 is required' ) );
 		}
 		if ( ! current_user_can( 'manage_options' ) ) {
-			self::page( 'Administrator needed', '<p>Only a site administrator can connect Claude to this site.</p>' );
+			self::page( FBCC_I18n::t( 'Administrator needed' ), '<p>' . esc_html( FBCC_I18n::t( 'Only a site administrator can connect Claude to this site.' ) ) . '</p>' );
 		}
 		$settings = FBCC_Store::settings();
 		if ( empty( $settings['enabled'] ) ) {
@@ -396,21 +396,36 @@ class FBCC_OAuth {
 			$back( array( 'code' => $code ) );
 		}
 
-		$levels = array(
+		$tr     = 'tr' === FBCC_I18n::lang();
+		$levels = $tr ? array(
+			'read'       => 'Salt okunur — sayfaları, yazıları, eklentileri ve site sağlığını okur. Hiçbir şeyi değiştirmez.',
+			'editor'     => 'İçerik editörü — taslakları düzenleyebilir ve sayfa oluşturabilir. Yayınlama onayınızı bekler.',
+			'maintainer' => 'Site yöneticisi — eklenti kurulumu ve güncellemesi de isteyebilir. Her biri onayınızı bekler.',
+		) : array(
 			'read'       => 'Read-only — reads pages, posts, plugins and site health. Changes nothing.',
 			'editor'     => 'Content editor — can edit drafts and create pages. Publishing waits for your approval.',
-			'maintainer' => 'Site maintainer — can also request plugin updates. Each one waits for your approval.',
+			'maintainer' => 'Site maintainer — can also request plugin installs and updates. Each one waits for your approval.',
 		);
 		$host   = wp_parse_url( $args['redirect_uri'], PHP_URL_HOST );
 		$hidden = '';
 		foreach ( $args as $k => $v ) {
 			$hidden .= '<input type="hidden" name="' . esc_attr( $k ) . '" value="' . esc_attr( $v ) . '">';
 		}
+		$nonce = wp_nonce_field( 'fbcc_authorize_' . $args['client_id'], '_wpnonce', true, false );
+		if ( $tr ) {
+			$body  = '<p><strong>' . esc_html( $client['name'] ) . '</strong> (dönüş adresi <code>' . esc_html( $host ) . '</code>) <strong>' . esc_html( get_bloginfo( 'name' ) ) . '</strong> sitesine bağlanmak istiyor.</p>';
+			$body .= '<ul><li>WordPress kullanıcısı <strong>claude-agent</strong> (Editör rolü) olarak çalışır, asla sizin adınıza değil.</li>';
+			$body .= '<li>Şu anki izin seviyesi: <strong>' . esc_html( $levels[ $settings['level'] ] ?? $settings['level'] ) . '</strong></li>';
+			$body .= '<li>Her işlem etkinlik kaydına yazılır. Bağlantıyı istediğiniz zaman Claude Bağlantısı ekranından kesebilirsiniz.</li></ul>';
+			$body .= '<form method="post" action="' . esc_url( self::authorize_url() ) . '">' . $hidden . $nonce;
+			$body .= '<div class="row"><button type="submit" name="fbcc_deny" value="1" class="ghost">Reddet</button><button type="submit" name="fbcc_allow" value="1" class="primary">Claude’a izin ver</button></div></form>';
+			self::page( 'Claude bu siteye bağlansın mı?', $body );
+		}
 		$body  = '<p><strong>' . esc_html( $client['name'] ) . '</strong> (returns to <code>' . esc_html( $host ) . '</code>) wants to connect to <strong>' . esc_html( get_bloginfo( 'name' ) ) . '</strong>.</p>';
 		$body .= '<ul><li>It will act as the WordPress user <strong>claude-agent</strong> (Editor role), never as you.</li>';
 		$body .= '<li>Current permission level: <strong>' . esc_html( $levels[ $settings['level'] ] ?? $settings['level'] ) . '</strong></li>';
 		$body .= '<li>Every action is written to the activity log. You can disconnect at any time from Claude Connection.</li></ul>';
-		$body .= '<form method="post" action="' . esc_url( self::authorize_url() ) . '">' . $hidden . wp_nonce_field( 'fbcc_authorize_' . $args['client_id'], '_wpnonce', true, false );
+		$body .= '<form method="post" action="' . esc_url( self::authorize_url() ) . '">' . $hidden . $nonce;
 		$body .= '<div class="row"><button type="submit" name="fbcc_deny" value="1" class="ghost">Deny</button><button type="submit" name="fbcc_allow" value="1" class="primary">Allow Claude</button></div></form>';
 		self::page( 'Connect Claude to this site?', $body );
 	}
@@ -419,7 +434,7 @@ class FBCC_OAuth {
 		status_header( 200 );
 		header( 'Content-Type: text/html; charset=utf-8' );
 		?><!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
+<html lang="<?php echo 'tr' === FBCC_I18n::lang() ? 'tr' : 'en'; ?>"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
 <title><?php echo esc_html( $title ); ?></title>
 <style>
 body{margin:0;background:#f0f0f1;font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#1d2327;display:flex;min-height:100vh;align-items:center;justify-content:center;padding:16px;box-sizing:border-box}

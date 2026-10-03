@@ -101,6 +101,10 @@ class FBCC_Browser {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
+		FBCC_I18n::render( array( __CLASS__, 'render_page' ) );
+	}
+
+	public static function render_page() {
 		echo '<div class="wrap fbcc"><div class="fbcc-title"><h1>Follow Claude’s browser</h1></div>';
 		if ( isset( $_GET['fbcc_msg'] ) ) { // phpcs:ignore
 			echo '<div class="notice notice-success"><p>' . esc_html( wp_unslash( rawurldecode( $_GET['fbcc_msg'] ) ) ) . '</p></div>'; // phpcs:ignore
