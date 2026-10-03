@@ -241,7 +241,31 @@ class FBCC_BuildTools {
 
 	public static function wpvivid_ready() {
 		global $wpvivid_plugin;
-		return class_exists( 'WPvivid_Interface_MainWP' ) && is_object( $wpvivid_plugin ) && isset( $wpvivid_plugin->backup2 ) && has_filter( 'wpvivid_prepare_backup_mainwp' );
+		if ( ! is_object( $wpvivid_plugin ) || ! isset( $wpvivid_plugin->backup2 ) ) {
+			return false;
+		}
+		// WPvivid only loads its MainWP interface inside wp-admin (load_admin). REST, MCP and
+		// background requests are not wp-admin, so load it here when it is missing.
+		if ( ! has_filter( 'wpvivid_prepare_backup_mainwp' ) ) {
+			try {
+				if ( ! class_exists( 'WPvivid_Interface_MainWP' ) && defined( 'WPVIVID_PLUGIN_DIR' ) ) {
+					$file = WPVIVID_PLUGIN_DIR . '/includes/class-wpvivid-interface-mainwp.php';
+					if ( is_readable( $file ) ) {
+						include_once $file;
+					}
+				}
+				if ( class_exists( 'WPvivid_Interface_MainWP' ) ) {
+					if ( empty( $wpvivid_plugin->interface_mainwp ) ) {
+						$wpvivid_plugin->interface_mainwp = new WPvivid_Interface_MainWP();
+					} else {
+						$wpvivid_plugin->interface_mainwp->load_wpvivid_mainwp_backup_filter();
+					}
+				}
+			} catch ( \Throwable $e ) {
+				return false;
+			}
+		}
+		return has_filter( 'wpvivid_prepare_backup_mainwp' ) && has_filter( 'wpvivid_backup_now_mainwp' );
 	}
 
 	private static function wpvivid_running() {
@@ -309,6 +333,10 @@ class FBCC_BuildTools {
 
 	public static function backup_create( $a ) {
 		if ( ! self::wpvivid_ready() ) {
+			global $wpvivid_plugin;
+			if ( is_object( $wpvivid_plugin ) ) {
+				return new WP_Error( 'wpvivid_interface', 'WPvivid is active, but its backup interface could not be loaded' . ( defined( 'WPVIVID_PLUGIN_VERSION' ) ? ' (WPvivid ' . WPVIVID_PLUGIN_VERSION . ')' : '' ) . '. Ask the owner to press Backup Now in WPvivid (' . admin_url( 'admin.php?page=WPvivid' ) . ') and confirm with backup_status.' );
+			}
 			return new WP_Error( 'no_wpvivid', 'WPvivid Backup is not active on this site. Install it first with plugins_install slug "wpvivid-backuprestore" (list it in the build plan\'s plugins on a fresh site), then call backup_create again.' );
 		}
 		if ( self::wpvivid_running() ) {

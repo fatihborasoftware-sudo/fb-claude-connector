@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.3 (3 October 2026)
+
+- Fix: `backup_create` said "WPvivid is not active" on every site even though WPvivid was installed and active. WPvivid only loads its backup interface inside wp-admin, and Claude's requests are REST requests, not wp-admin; the connector now loads that interface itself. If it still cannot, the error says so and points to WPvivid's own *Backup Now*.
+
 ## 1.2.2 (3 October 2026)
 
 - Fix: the connector's settings now have their own name (`fbcc_connector_settings`). Before, they shared `fbcc_settings` with other plugins that shorten their name to "fbcc" (for example a cookie-consent plugin). On such sites the permission level never saved and stayed **Read-only**. Existing connector settings move over automatically on the first load; another plugin's settings are never touched.

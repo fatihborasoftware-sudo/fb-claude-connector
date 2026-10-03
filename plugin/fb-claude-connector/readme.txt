@@ -1,5 +1,5 @@
 === FB AI Engine – Claude Connector ===
-Version: 1.2.2
+Version: 1.2.3
 Requires at least: 6.4
 Requires PHP: 7.4
 License: GPLv2 or later
@@ -88,6 +88,9 @@ SetEnvIf Authorization "(.+)" HTTP_AUTHORIZATION=$1
 
 1.1.1
 - site_check compares a fresh copy of each page with what visitors actually get and reports pages where a CDN or page cache still serves an old version ("Visitors see an old cached copy" — purge the cache).
+
+1.2.3
+- Fix: backup_create said "WPvivid is not active" on every site even though WPvivid was installed and active. WPvivid only loads its backup interface inside wp-admin, and Claude's requests are not wp-admin requests; the connector now loads that interface itself. If it still cannot, the error says so and points to WPvivid's own Backup Now.
 
 1.2.2
 - Fix: the connector's settings now have their own name (fbcc_connector_settings). Before, they shared "fbcc_settings" with other plugins that shorten their name to fbcc (e.g. a cookie-consent plugin), so on such sites the permission level never saved and stayed Read-only. Existing connector settings are moved over automatically; another plugin's settings are never touched.
