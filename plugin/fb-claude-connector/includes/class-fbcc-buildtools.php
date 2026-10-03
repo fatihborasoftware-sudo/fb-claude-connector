@@ -84,6 +84,18 @@ class FBCC_BuildTools {
 			), array( 'data', 'filename', 'alt' ) ),
 			'run'         => array( __CLASS__, 'media_upload_data' ),
 		);
+		$t['content_trash'] = array(
+			'title'       => 'Move to Trash',
+			'description' => 'Move a page or post to the WordPress Trash (it can be restored from Trash for 30 days — nothing is deleted for good). Use it for WordPress\'s default "Hello world!" post and "Sample Page" on a fresh site. Never the homepage or the posts page. Goes to approvals unless the build plan lists the id (plan field "trash").',
+			'level'       => 'editor',
+			'kind'        => 'approval',
+			'schema'      => self::obj( array(
+				'id'     => array( 'type' => 'integer' ),
+				'reason' => array( 'type' => 'string' ),
+			), array( 'id', 'reason' ) ),
+			'prepare'     => array( __CLASS__, 'trash_prepare' ),
+			'execute'     => array( __CLASS__, 'trash_execute' ),
+		);
 		$t['backup_status'] = array(
 			'title'       => 'Backup status',
 			'description' => 'The latest WPvivid backup on this site (when, kind, age) and whether a backup is running right now. Check it before any build or plugin change; if it is not fresh, run backup_create first.',
@@ -264,7 +276,7 @@ class FBCC_BuildTools {
 		if ( null === $latest && ! self::wpvivid_ready() ) {
 			return array(
 				'found'   => false,
-				'message' => 'WPvivid is not active. If another plugin or the hosting panel makes the backups, ask the owner to confirm a fresh one.',
+				'message' => 'WPvivid is not active. Install it with plugins_install slug "wpvivid-backuprestore" (on a build, list it first in the plan\'s plugins), then run backup_create. If another plugin or the hosting panel makes the backups, ask the owner to confirm a fresh one instead.',
 			);
 		}
 		$out = array(
@@ -297,7 +309,7 @@ class FBCC_BuildTools {
 
 	public static function backup_create( $a ) {
 		if ( ! self::wpvivid_ready() ) {
-			return new WP_Error( 'no_wpvivid', 'WPvivid Backup is not active on this site, so the connector cannot take a backup. Ask the owner to make one.' );
+			return new WP_Error( 'no_wpvivid', 'WPvivid Backup is not active on this site. Install it first with plugins_install slug "wpvivid-backuprestore" (list it in the build plan\'s plugins on a fresh site), then call backup_create again.' );
 		}
 		if ( self::wpvivid_running() ) {
 			return array( 'started' => false, 'running' => true, 'message' => 'A backup is already running. Follow it with backup_status.' );
@@ -522,6 +534,45 @@ class FBCC_BuildTools {
 		return array(
 			'_summary' => 'Site settings updated' . ( isset( $p['site_icon'] ) ? ' (site icon ' . ( $p['site_icon'] ? '#' . (int) $p['site_icon'] : 'removed' ) . ')' : '' ),
 			'_undo'    => admin_url( 'options-general.php' ),
+		);
+	}
+
+	/* -- content_trash (1.2.0) -------------------------------------------- */
+
+	public static function trash_prepare( $a ) {
+		$id   = (int) $a['id'];
+		$post = get_post( $id );
+		if ( ! $post || ! in_array( $post->post_type, array( 'page', 'post' ), true ) ) {
+			return new WP_Error( 'not_found', 'No page or post with id ' . $id . '.' );
+		}
+		if ( 'trash' === $post->post_status ) {
+			return new WP_Error( 'already', '“' . $post->post_title . '” is already in the Trash.' );
+		}
+		if ( in_array( $id, array( (int) get_option( 'page_on_front' ), (int) get_option( 'page_for_posts' ) ), true ) ) {
+			return new WP_Error( 'protected', '“' . $post->post_title . '” is the homepage or the posts page — set another one first.' );
+		}
+		return array(
+			'title'   => 'Move ' . ( 'page' === $post->post_type ? 'page' : 'post' ) . ' “' . $post->post_title . '” (#' . $id . ', ' . $post->post_status . ') to the Trash',
+			'payload' => array( 'id' => $id ),
+		);
+	}
+
+	public static function trash_execute( $p ) {
+		$id   = (int) $p['id'];
+		$post = get_post( $id );
+		if ( ! $post ) {
+			return new WP_Error( 'not_found', 'It no longer exists.' );
+		}
+		if ( in_array( $id, array( (int) get_option( 'page_on_front' ), (int) get_option( 'page_for_posts' ) ), true ) ) {
+			return new WP_Error( 'protected', 'This is now the homepage or the posts page; it was not moved.' );
+		}
+		$r = wp_trash_post( $id );
+		if ( ! $r ) {
+			return new WP_Error( 'trash_failed', 'WordPress could not move it to the Trash.' );
+		}
+		return array(
+			'_summary' => '“' . $post->post_title . '” moved to the Trash',
+			'_undo'    => admin_url( 'edit.php?post_status=trash&post_type=' . $post->post_type ),
 		);
 	}
 }

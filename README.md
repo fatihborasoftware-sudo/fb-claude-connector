@@ -8,6 +8,7 @@ Connect **Claude** to your **WordPress** site as a custom connector (a remote MC
 
 - **Approve once** — agree the mockups in chat, approve one *build plan*, and Claude builds the whole site: pages, blog posts, theme, menu and homepage.
 - **Watch Me Live** — follow every step on your own site, with a live view of the page Claude is changing. Also: see **Claude's own browser** live when it works on admin screens, and hear **spoken briefs** (English or Türkçe).
+- **Starts from a blank site** — on a fresh WordPress install Claude installs the theme and plugins the approved plan lists (free ones from WordPress.org), clears the default content and builds everything.
 - **Checks its own work** — takes a WPvivid backup before building and runs a site check (broken links, missing images, stale CDN copies) before calling a job done.
 - **English or Türkçe** — every connector screen in either language.
 - **Safe by design** — its own Editor user, permission levels, an approval queue, a revision before every edit, an activity log and a kill switch.
@@ -25,7 +26,7 @@ Live demo and docs: the **Engine Lab** test site was built entirely through this
 ## Install
 
 1. **Back up your site first** (for example with WPvivid).
-2. Download **fb-claude-connector-1.1.1.zip** from the [latest release](https://github.com/fatihborasoftware-sudo/fb-claude-connector/releases/latest) (or from [`dist/`](dist/fb-claude-connector-1.1.1.zip)).
+2. Download **fb-claude-connector-1.2.1.zip** from the [latest release](https://github.com/fatihborasoftware-sudo/fb-claude-connector/releases/latest) (or from [`dist/`](dist/fb-claude-connector-1.2.1.zip)).
 3. In WordPress go to **Plugins → Add New → Upload Plugin**, choose the zip and activate it. A new screen appears: **Claude Connection**.
 4. Open **Claude Connection → Setup**, click **Run server check**, then **Run full test**. It should report `initialize: 200` and the number of tools.
 
@@ -59,15 +60,15 @@ Claude never sees your password. It receives a key you can revoke at any time.
 
 A **build plan** replaces the separate approvals for everything it lists. Anything outside the plan still asks.
 
-## Tools (1.1.1)
+## Tools (1.2.1)
 
 **Read:** `site_health`, `site_check`, `content_list`, `content_get`, `plugins_list`, `media_list`, `backup_status`, `theme_settings_get`, `activity_recent`, `approvals_list`, `build_plan_status`, `task_status`
 
-**Write:** `backup_create`, `content_create_draft`, `content_update`, `content_publish`, `media_upload`, `media_upload_data`, `post_settings_set`, `menu_set`, `site_settings`, `build_plan_submit`
+**Write:** `backup_create`, `content_create_draft`, `content_update`, `content_publish`, `content_trash`, `media_upload`, `media_upload_data`, `post_settings_set`, `menu_set`, `site_settings`, `build_plan_submit`
 
 **Theme (approval or build plan):** `theme_settings_set`, `widgets_set`, `custom_css_set`
 
-**Plugins (Site maintainer):** `plugins_install`, `plugins_update`
+**Plugins & themes (Site maintainer):** `plugins_install`, `plugins_update`, `theme_install`
 
 **With other plugins:** `form_create` (Contact Form 7), `mindmap_list`, `mindmap_get`, `mindmap_update` (FB Mind Map)
 
@@ -79,7 +80,18 @@ A **build plan** replaces the separate approvals for everything it lists. Anythi
 - your site at full size — still clickable — with Claude's changes outlined in orange
 - **Claude's browser**: when Claude must use a screen no tool covers, it first opens *Link Claude's browser* and clicks **Link**. Watch Me Live then mirrors that browser: the page it is on, an orange marker on what it clicked, and a view-only copy of the screen. Only the linked browser reports; scripts, passwords, hidden fields and nonces are never copied. The link ends when the task is done, when you click Unlink, or after 2 hours.
 - **Voice briefs**: a start brief, each step, *waiting for you* and a finish brief, read aloud by your browser. Choose what to read, English or Türkçe, the voice and the speed.
+- a **working indicator**: moving dots, what Claude is doing right now and a running clock — plus an orange glow around your site while Claude works
+- a side panel you can **resize** by dragging its edge or **minimize** into a slim rail (» button or the `]` key), and a **Light / Dark / Auto** theme
 - approvals you can approve or reject in place, and a full activity feed.
+
+## Build a site from a blank WordPress
+
+1. Install WordPress and this plugin. If Claude Connection shows *Fix your links first*, click **Use post-name links**.
+2. Setup → **Run server check**, set the level to **Site maintainer**, connect Claude.
+3. Agree the mockups with Claude in chat. Claude sends **one build plan** that lists the pages, blog posts, theme, plugins and the default content to move to the Trash.
+4. Approve the plan once. Claude installs WPvivid and takes a backup, installs the theme and plugins, clears *Hello world!*, uploads the images and builds every page — you follow along on Watch Me Live.
+
+Only free plugins and themes from WordPress.org can be installed this way.
 
 ## Safety
 

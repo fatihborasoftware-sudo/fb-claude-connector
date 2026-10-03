@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.2.1 (3 October 2026)
+
+- form_create is always available; when Contact Form 7 is missing it says to install `contact-form-7` first. A build chat that installs CF7 midway can now make the form without starting a new chat.
+
+## 1.2.0 — build from a blank WordPress (3 October 2026)
+
+- **theme_install** — installs a free theme from WordPress.org and activates it; the previous theme can be switched back with the undo link.
+- **content_trash** — moves a page or post to the Trash (restorable), e.g. the default "Hello world!" and "Sample Page". Never the homepage or the posts page.
+- Build plans can list **themes** and items to **trash**. Installs the owner approved in the plan run even while the lab lock is on; the AI Engine emergency lock and the Online Lab lock still block everything.
+- Setup and Overview warn when the site uses Plain links (the connector address does not work then) and offer a one-click *Use post-name links*.
+- Without WPvivid, backup_create and backup_status tell Claude to install `wpvivid-backuprestore` first. Claude's instructions include the fresh-site order: WPvivid → backup → theme → plugins → clean-up → build.
+
+## 1.1.5
+
+- Fix: the Watch Me Live side panel keeps the width you drag it to.
+
+## 1.1.4
+
+- Watch Me Live: drag the side panel's left edge to resize it (300–640 px, double-click to reset); minimize it into a slim rail with the » button or the `]` key (brief, approvals with a pulsing count, feed, step, kill switch); **Light / Dark / Auto** theme. Width, minimized state and theme are remembered on this computer. Phones and small tablets keep the stacked layout.
+
+## 1.1.3
+
+- Watch Me Live: an orange glow around your site while Claude works; it fades out when the task is finished.
+
+## 1.1.2
+
+- Watch Me Live: a working pill next to LIVE with moving dots, what Claude is doing right now and a running clock; "Finished" and the total time at the end. The admin bar badge shows the moving dots and the running time too.
+
 ## 1.1.1 (3 October 2026)
 
 - site_check compares a fresh copy of each page with what visitors actually get and reports pages where a CDN or page cache still serves an old version ("Visitors see an old cached copy" — purge the cache).

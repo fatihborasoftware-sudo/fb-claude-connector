@@ -66,6 +66,7 @@ class FBCC_MCP {
 			'working'  => (bool) $t,
 			'task'     => $t,
 			'pending'  => FBCC_Store::pending_count(),
+			'now'      => time(),
 			'enabled'  => (bool) FBCC_Store::settings()['enabled'],
 		) );
 	}
@@ -279,6 +280,7 @@ class FBCC_MCP {
 			. 'Never claim a change is live until approvals_list shows it approved. '
 			. 'For a whole website: agree the mockups with the owner in chat first, then send them as ONE plan with build_plan_submit; once the owner confirms it, everything inside the plan runs without further approvals (check build_plan_status). '
 			. 'Before any build plan, plugin install or theme change, take a backup with backup_create and wait until backup_status shows it fresh. '
+			. 'Fresh site (nothing installed yet): put everything the build needs in the plan — plugins (wpvivid-backuprestore FIRST, then e.g. kadence-blocks, contact-form-7), themes (e.g. kadence) and trash (ids of the default "Hello world!" post and "Sample Page", found with content_list). After approval: plugins_install wpvivid-backuprestore → backup_create → theme_install → the other plugins → content_trash → build. Plan-listed installs work even while the lab lock is on; they need the Site maintainer level — if the level is lower, ask the owner to raise it. Only free WordPress.org plugins and themes can be installed. '
 			. 'After building or changing pages, run site_check and fix every problem it reports before telling the owner the work is done. '
 			. 'Images you make in chat go into the media library with media_upload_data. '
 			. 'Never publish a blog post without its featured image (post_settings_set). Put site-wide styles in custom_css_set — <style> tags in page content are removed; inline SVG icons are allowed. '

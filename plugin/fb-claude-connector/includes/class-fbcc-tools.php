@@ -340,6 +340,10 @@ class FBCC_Tools {
 				$t['steps'] = $prev['steps']; // keep the plan visible between steps
 			}
 		}
+		// Keep the start time while the same task runs, so Watch Me Live can show a running clock.
+		$prev         = get_option( FBCC_Store::OPT_TASK );
+		$same         = is_array( $prev ) && ( $prev['title'] ?? '' ) === $t['title'] && empty( $prev['done'] ) && time() - (int) ( $prev['updated'] ?? 0 ) <= 600;
+		$t['started'] = $same && ! empty( $prev['started'] ) ? (int) $prev['started'] : time();
 		FBCC_Store::set_task( $t );
 		if ( $t['done'] && class_exists( 'FBCC_Browser' ) ) {
 			FBCC_Browser::end( 'task finished' );

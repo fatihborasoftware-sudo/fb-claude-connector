@@ -14,7 +14,7 @@ class FBCC_Admin {
 	public static function init() {
 		add_action( 'admin_menu', array( __CLASS__, 'menu' ), 99 );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'assets' ) );
-		foreach ( array( 'save', 'kill', 'enable', 'decide', 'revoke', 'htaccess', 'selftest' ) as $a ) {
+		foreach ( array( 'save', 'kill', 'enable', 'decide', 'revoke', 'htaccess', 'selftest', 'permalinks' ) as $a ) {
 			add_action( 'admin_post_fbcc_' . $a, array( __CLASS__, 'action_' . $a ) );
 		}
 		add_action( 'admin_bar_menu', array( __CLASS__, 'admin_bar' ), 90 );
@@ -153,6 +153,25 @@ class FBCC_Admin {
 		self::back( 'setup', $msg[ $r ] ?? 'Could not change .htaccess (' . $r . '). Add the block by hand — see readme.txt.', isset( $msg[ $r ] ) ? 'success' : 'error' );
 	}
 
+	public static function action_permalinks() {
+		self::guard( 'fbcc_permalinks' );
+		global $wp_rewrite;
+		$wp_rewrite->set_permalink_structure( '/%postname%/' );
+		flush_rewrite_rules( false );
+		FBCC_Store::log( 'settings', 'Links set to “Post name” (/%postname%/) so the connector address works', 'done' );
+		self::back( 'setup', 'Links now use the post name. Run the server check.' );
+	}
+
+	/** Plain links (?p=123) break the /wp-json/ connector address. */
+	private static function permalink_notice() {
+		if ( '' !== (string) get_option( 'permalink_structure' ) ) {
+			return;
+		}
+		echo '<section class="fbcc-card" style="border-color:#E9C88F;background:#FBF0DC"><h2>Fix your links first</h2><p>This site uses <strong>Plain</strong> links (<code>?p=123</code>), so the connector address <code>/wp-json/…</code> does not work and Claude cannot connect. Switch to <strong>Post name</strong> links — the usual setting for new sites.</p>';
+		self::form_open( 'permalinks' );
+		echo '<button class="button button-primary">Use post-name links</button></form></section>';
+	}
+
 	/** Full round trip through the public URL, exactly like Claude: token → initialize → tools/list. */
 	public static function action_selftest() {
 		self::guard( 'fbcc_selftest' );
@@ -210,7 +229,7 @@ class FBCC_Admin {
 		$text = self::bar_text( FBCC_Store::task(), FBCC_Store::pending_count() );
 		$bar->add_node( array(
 			'id'    => 'fbcc-live',
-			'title' => '<span class="fbcc-dot"></span><span class="fbcc-txt">' . esc_html( $text ) . '</span>',
+			'title' => '<span class="fbcc-dot"></span><span class="fbcc-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="fbcc-txt">' . esc_html( $text ) . '</span><span class="fbcc-clk"></span>',
 			'href'  => FBCC_Store::task() ? FBCC_Live::url() : self::url( FBCC_Store::pending_count() ? 'approvals' : 'overview' ),
 			'meta'  => array( 'class' => $text ? 'fbcc-on' : 'fbcc-off' ),
 		) );
@@ -238,19 +257,30 @@ class FBCC_Admin {
 #wpadminbar .fbcc-off{display:none}
 #wpadminbar #wp-admin-bar-fbcc-live>.ab-item{background:#4f3fd0;color:#fff;border-radius:999px;margin:4px 6px;height:24px;line-height:24px;padding:0 10px;font-weight:600}
 #wpadminbar #wp-admin-bar-fbcc-live .fbcc-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#5ee39a;margin-right:7px;vertical-align:0}
-#wpadminbar #wp-admin-bar-fbcc-live.fbcc-working .fbcc-dot{animation:fbccPulse 1.2s ease-in-out infinite}
+#wpadminbar #wp-admin-bar-fbcc-live .fbcc-dots{display:none;margin-right:8px;vertical-align:1px}
+#wpadminbar #wp-admin-bar-fbcc-live .fbcc-dots i{display:inline-block;width:5px;height:5px;border-radius:50%;background:#fff;margin-right:3px;animation:fbccDots 1.2s ease-in-out infinite}
+#wpadminbar #wp-admin-bar-fbcc-live .fbcc-dots i:nth-child(2){animation-delay:.15s}#wpadminbar #wp-admin-bar-fbcc-live .fbcc-dots i:nth-child(3){animation-delay:.3s;margin-right:0}
+#wpadminbar #wp-admin-bar-fbcc-live.fbcc-working .fbcc-dot{display:none}
+#wpadminbar #wp-admin-bar-fbcc-live.fbcc-working .fbcc-dots{display:inline-block}
+#wpadminbar #wp-admin-bar-fbcc-live .fbcc-clk{margin-left:6px;opacity:.85;font-variant-numeric:tabular-nums}
+@keyframes fbccDots{0%,60%,100%{transform:translateY(0);opacity:.45}30%{transform:translateY(-3px);opacity:1}}
 @keyframes fbccPulse{50%{opacity:.25}}
-@media (prefers-reduced-motion:reduce){#wpadminbar #wp-admin-bar-fbcc-live .fbcc-dot{animation:none}}
+@media (prefers-reduced-motion:reduce){#wpadminbar #wp-admin-bar-fbcc-live .fbcc-dots i{animation:none;opacity:1}}
 </style>
 <script>
 (function(){
 	var li=document.getElementById('wp-admin-bar-fbcc-live'); if(!li||!window.fetch) return;
-	var txt=li.querySelector('.fbcc-txt');
+	var txt=li.querySelector('.fbcc-txt'), clk=li.querySelector('.fbcc-clk'), st=0, off=0;
+	function dur(x){x=Math.max(0,Math.floor(x));var h=Math.floor(x/3600),m=Math.floor(x%3600/60),s=x%60;return h?h+'h '+(m<10?'0':'')+m+'m':(m?m+'m '+(s<10?'0':'')+s+'s':s+'s');}
+	function tick(){ clk.textContent = st ? '· '+dur(Date.now()/1000+off-st) : ''; }
+	setInterval(tick,1000);
 	var W=<?php echo wp_json_encode( FBCC_I18n::t( 'Claude is working' ) ); ?>, S=<?php echo wp_json_encode( FBCC_I18n::t( 'step %1$s of %2$s' ) ); ?>, P=<?php echo wp_json_encode( FBCC_I18n::t( 'Claude · %s waiting for approval' ) ); ?>;
 	function paint(d){
 		var t='';
 		if(d.task){ t=W; if(d.task.total>1){ t+=' · '+S.replace('%1$s',d.task.step).replace('%2$s',d.task.total); } if(d.task.note){ li.title=d.task.title+' — '+d.task.note; } }
 		else if(d.pending){ t=P.replace('%s',d.pending); li.title=''; }
+		if(d.now){ off=d.now-Date.now()/1000; }
+		st=(d.task&&d.task.started)?d.task.started:0; tick();
 		txt.textContent=t;
 		li.className=(t?'fbcc-on':'fbcc-off')+(d.task?' fbcc-working':'');
 	}
@@ -345,6 +375,7 @@ class FBCC_Admin {
 		$client = $c['session'] ? FBCC_Store::client( $c['session']->client_id ) : null;
 		$by     = $c['session'] ? get_userdata( (int) $c['session']->user_id ) : null;
 
+		self::permalink_notice();
 		FBCC_Plan::card();
 		echo '<div class="fbcc-grid2">';
 		FBCC_BuildTools::card();
@@ -505,7 +536,7 @@ class FBCC_Admin {
 		foreach ( $rows as $r ) {
 			$tool   = FBCC_Tools::get( $r->tool );
 			$lock   = $tool ? FBCC_Gateway::lock_reason( array_merge( $tool, array( 'kind' => 'approval' ) ) ) : '';
-			$badges = array( 'content_publish' => 'PUBLISH', 'plugins_update' => 'PLUGIN', 'menu_set' => 'MENU', 'site_settings' => 'SITE', 'content_update' => 'LIVE EDIT', 'build_plan_submit' => 'BUILD PLAN', 'theme_settings_set' => 'THEME', 'widgets_set' => 'WIDGETS', 'plugins_install' => 'PLUGIN' );
+			$badges = array( 'content_publish' => 'PUBLISH', 'plugins_update' => 'PLUGIN', 'menu_set' => 'MENU', 'site_settings' => 'SITE', 'content_update' => 'LIVE EDIT', 'build_plan_submit' => 'BUILD PLAN', 'theme_settings_set' => 'THEME', 'widgets_set' => 'WIDGETS', 'plugins_install' => 'PLUGIN', 'theme_install' => 'THEME', 'content_trash' => 'TRASH' );
 			$badge  = $badges[ $r->tool ] ?? strtoupper( $r->tool );
 			$cls    = 'plugins_update' === $r->tool ? 'fbcc-b-red' : 'fbcc-b-amber';
 			echo '<div class="fbcc-appr"><div class="fbcc-appr-main"><div><span class="fbcc-badge ' . esc_attr( $cls ) . '">' . esc_html( $badge ) . '</span> <strong>' . esc_html( $r->title ) . '</strong></div>';
@@ -566,6 +597,7 @@ class FBCC_Admin {
 
 	private static function tab_setup() {
 		$url = FBCC_OAuth::mcp_url();
+		self::permalink_notice();
 		echo '<section class="fbcc-card"><h2>Connect Claude to this site</h2><ol class="fbcc-setup">';
 		echo '<li>Choose a permission level on the Overview tab. Start with <strong>Read-only</strong>.</li>';
 		echo '<li>In Claude, open <strong>Settings → Connectors → Add custom connector</strong>.</li>';

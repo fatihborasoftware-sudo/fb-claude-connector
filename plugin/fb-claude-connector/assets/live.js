@@ -440,6 +440,7 @@
 		if (b.time > lastBrowser.time) { lastBrowser = { time: b.time, url: b.url, title: b.title }; }
 		// Claude's browser leads while it is the most recent thing Claude did (and it did something in the last 2 minutes).
 		var leads = b.time && (d.now - b.time) < 120 && b.time >= lastConnectorTs;
+		if (leads && b.time > lastTool.ts) { lastTool = { tool: 'browser', ts: b.time }; }
 		if (follow && leads) {
 			showScreen(true);
 			dock('admin');
@@ -450,8 +451,55 @@
 	}
 
 	/* ---------- top bar + plan ---------- */
+	/* ---------- working pill: moving dots, current action, running clock ---------- */
+	var clock = { start: 0, end: 0, offset: 0, live: false }, lastTool = { tool: '', ts: 0 };
+	var ACTS = [
+		[/^theme_install$/, 'Installing a theme…'], [/^plugins_install$/, 'Installing a plugin…'], [/^content_trash$/, 'Cleaning up…'],
+		[/^browser$/, 'Using the browser…'], [/^backup/, 'Taking a backup…'], [/^site_check$/, 'Checking the site…'],
+		[/^content_(update|create_draft)$/, 'Editing a page…'], [/^content_publish$/, 'Publishing…'], [/^content_(get|list)$/, 'Reading pages…'],
+		[/^media_/, 'Working on images…'], [/^(theme_settings_set|custom_css_set)$/, 'Changing the design…'], [/^widgets_set$/, 'Updating the footer…'],
+		[/^menu_set$/, 'Updating the menu…'], [/^(site_settings|post_settings_set)$/, 'Changing settings…'], [/^plugins_/, 'Working on plugins…'],
+		[/^mindmap_/, 'Reading the mind map…'], [/^form_create$/, 'Building a form…'], [/^build_plan/, 'Checking the plan…']
+	];
+	function actText(nowSrv) {
+		if (!lastTool.tool || nowSrv - lastTool.ts > 90) { return L('Thinking…'); }
+		for (var i = 0; i < ACTS.length; i++) { if (ACTS[i][0].test(lastTool.tool)) { return L(ACTS[i][1]); } }
+		return L('Working…');
+	}
+	function fmtDur(sec) {
+		sec = Math.max(0, Math.floor(sec));
+		var h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s2 = sec % 60;
+		if (h) { return h + 'h ' + (m < 10 ? '0' : '') + m + 'm'; }
+		if (m) { return m + 'm ' + (s2 < 10 ? '0' : '') + s2 + 's'; }
+		return s2 + 's';
+	}
+	function tickClock() {
+		if (!clock.start) { return; }
+		var nowSrv = Date.now() / 1000 + clock.offset;
+		$('wl-clock').textContent = fmtDur((clock.live ? nowSrv : clock.end) - clock.start);
+		if (clock.live) { $('wl-act').textContent = actText(nowSrv); }
+	}
+	setInterval(tickClock, 1000);
+	function paintWork(d) {
+		var w = $('wl-work'), t = d.task, f = d.finished;
+		if (d.now) { clock.offset = d.now - Date.now() / 1000; }
+		root.classList.toggle('is-working', !!t);
+		if (t && t.started) {
+			clock = { start: t.started, end: 0, offset: clock.offset, live: true };
+			w.hidden = false; w.classList.remove('is-done');
+		} else if (f && f.started) {
+			clock = { start: f.started, end: f.updated, offset: clock.offset, live: false };
+			w.hidden = false; w.classList.add('is-done');
+			$('wl-act').textContent = L('Finished');
+		} else {
+			clock.start = 0; w.hidden = true;
+		}
+		tickClock();
+	}
+
 	function paint(d) {
 		var t = d.task;
+		paintWork(d);
 		root.classList.toggle('is-live', !!d.live);
 		$('wl-state').textContent = d.live ? L('LIVE') : L('IDLE');
 		if (t) {
@@ -518,6 +566,7 @@
 				paint(d);
 				(d.events || []).forEach(function (ev) {
 					if (ev.tool !== 'browser' && ev.ts > lastConnectorTs) { lastConnectorTs = ev.ts; }
+					if (ev.ts >= lastTool.ts && ev.tool !== 'task_status') { lastTool = { tool: ev.tool, ts: ev.ts }; }
 					if (first) { feedItem(ev); } else { queue.push(ev); }
 				});
 				if (first && d.events.length) { dock(d.events[d.events.length - 1].win); }
@@ -525,6 +574,91 @@
 			})
 			.catch(function () {});
 	}
+
+	/* ---------- 1.1.4: resizable panel, minimize to rail, theme ---------- */
+	(function () {
+		var rail = $('wl-rail'), grip = $('wl-grip'), wtip = $('wl-wtip'), MINW = 300, MAXW = 640, DEFW = 360;
+		if (!rail || !grip) { return; }
+		var side = { w: 0, min: false };
+		try { side = Object.assign(side, JSON.parse(window.localStorage.getItem('fbcc_wl_side') || '{}')); } catch (e) {}
+		function saveSide() { try { window.localStorage.setItem('fbcc_wl_side', JSON.stringify(side)); } catch (e) {} }
+		function wide() { return window.innerWidth > 1000; }
+		function setW(w, keep) {
+			w = Math.max(MINW, Math.min(MAXW, Math.round(w)));
+			rail.style.width = rail.style.flexBasis = w + 'px';
+			wtip.textContent = w + ' px';
+			if (keep) { side.w = w; saveSide(); }
+		}
+		function setMin(m) {
+			side.min = !!m; saveSide();
+			rail.classList.toggle('is-min', side.min);
+			if (!side.min) { $('wl-rn').classList.remove('is-new'); }
+		}
+		if (side.w) { setW(side.w, false); }
+		rail.classList.toggle('is-min', !!side.min);
+
+		grip.addEventListener('pointerdown', function (e) {
+			if (!wide()) { return; }
+			e.preventDefault();
+			rail.classList.add('is-drag');
+			document.querySelectorAll('.wl-frame iframe').forEach(function (f) { f.style.pointerEvents = 'none'; });
+			try { grip.setPointerCapture(e.pointerId); } catch (x) {}
+			var right = rail.getBoundingClientRect().right, cur = rail.getBoundingClientRect().width;
+			function mv(ev) { cur = right - ev.clientX; setW(cur, false); }
+			function up() {
+				setW(cur, true);
+				rail.classList.remove('is-drag');
+				document.querySelectorAll('.wl-frame iframe').forEach(function (f) { f.style.pointerEvents = ''; });
+				grip.removeEventListener('pointermove', mv); grip.removeEventListener('pointerup', up); grip.removeEventListener('pointercancel', up);
+			}
+			grip.addEventListener('pointermove', mv); grip.addEventListener('pointerup', up); grip.addEventListener('pointercancel', up);
+		});
+		grip.addEventListener('dblclick', function () { setW(DEFW, true); });
+		grip.addEventListener('keydown', function (e) {
+			var w = side.w || parseFloat(rail.style.width) || DEFW;
+			if (e.key === 'ArrowLeft') { setW(w + 20, true); e.preventDefault(); }
+			if (e.key === 'ArrowRight') { setW(w - 20, true); e.preventDefault(); }
+		});
+		$('wl-min').addEventListener('click', function () { setMin(true); });
+		document.querySelectorAll('#wl-mrail [data-open]').forEach(function (b) {
+			b.addEventListener('click', function () { setMin(false); tab(b.getAttribute('data-open')); });
+		});
+		document.addEventListener('keydown', function (e) {
+			if (e.key !== ']' || e.ctrlKey || e.metaKey || e.altKey || !wide()) { return; }
+			var t = document.activeElement && document.activeElement.tagName;
+			if (/INPUT|TEXTAREA|SELECT/.test(t) || (document.activeElement && document.activeElement.isContentEditable)) { return; }
+			setMin(!side.min);
+		});
+
+		/* keep the rail's step and approval badge in sync */
+		var lastN = 0;
+		setInterval(function () {
+			var st = ($('wl-step').textContent || '').replace(/^\S+\s+/, '');
+			$('wl-rstep').textContent = st;
+			var n = parseInt(($('s-wait') || {}).textContent, 10) || 0, rn = $('wl-rn');
+			rn.textContent = n; rn.hidden = !n;
+			if (n > lastN && side.min) { rn.classList.remove('is-new'); void rn.offsetWidth; rn.classList.add('is-new'); }
+			lastN = n;
+		}, 1000);
+
+		/* theme: light / dark / auto (follows the computer) */
+		var mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null, theme = 'auto';
+		try { theme = window.localStorage.getItem('fbcc_wl_theme') || 'auto'; } catch (e) {}
+		function applyTheme() {
+			var d = theme === 'dark' || (theme === 'auto' && mq && mq.matches);
+			root.classList.toggle('is-dark', !!d);
+			document.querySelectorAll('.wl-theme button').forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-theme') === theme ? 'true' : 'false'); });
+		}
+		document.querySelectorAll('.wl-theme button').forEach(function (b) {
+			b.addEventListener('click', function () {
+				theme = b.getAttribute('data-theme');
+				try { window.localStorage.setItem('fbcc_wl_theme', theme); } catch (e) {}
+				applyTheme();
+			});
+		});
+		if (mq) { (mq.addEventListener ? mq.addEventListener('change', applyTheme) : mq.addListener(applyTheme)); }
+		applyTheme();
+	})();
 
 	go(C.home, false);
 	poll();

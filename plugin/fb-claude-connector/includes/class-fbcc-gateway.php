@@ -31,14 +31,14 @@ class FBCC_Gateway {
 	}
 
 	/** Why a tool may not change anything right now ('' = allowed). */
-	public static function lock_reason( array $tool ) {
+	public static function lock_reason( array $tool, $name = '', array $args = array() ) {
 		if ( in_array( $tool['kind'], array( 'read', 'status' ), true ) ) {
 			return '';
 		}
 		if ( FBCC_Store::emergency_lock() ) {
 			return 'AI Engine emergency write lock is ON — no changes are allowed.';
 		}
-		if ( ! empty( $tool['site'] ) && FBCC_Store::lab_lock() ) {
+		if ( ! empty( $tool['site'] ) && FBCC_Store::lab_lock() && ! ( $name && ! FBCC_Store::lab_lock_forced() && FBCC_Plan::allows_site( $name, $args ) ) ) {
 			return FBCC_Store::lab_lock_forced()
 				? 'This site runs as the Online Lab: plugin and site changes are always locked.'
 				: 'Lab lock is ON — plugin and site changes are blocked. The owner can turn it off in Claude Connection.';
@@ -70,7 +70,7 @@ class FBCC_Gateway {
 			}
 		}
 
-		$lock = self::lock_reason( $tool );
+		$lock = self::lock_reason( $tool, $name, $args );
 		if ( $lock ) {
 			FBCC_Store::log( $name, 'Blocked: ' . $lock, 'blocked', '', $client_id );
 			return new WP_Error( 'locked', $lock );
@@ -172,7 +172,7 @@ class FBCC_Gateway {
 		if ( ! $tool ) {
 			return new WP_Error( 'unknown', 'Unknown tool.' );
 		}
-		$lock = self::lock_reason( array_merge( $tool, array( 'kind' => 'approval' ) ) );
+		$lock = self::lock_reason( array_merge( $tool, array( 'kind' => 'approval' ) ), $row->tool, (array) json_decode( (string) $row->payload, true ) );
 		if ( $lock ) {
 			return new WP_Error( 'locked', $lock );
 		}

@@ -112,7 +112,9 @@ class FBCC_Plan {
 					'menu'     => array( 'type' => 'boolean', 'description' => 'The plan includes the main menu' ),
 					'settings' => array( 'type' => 'boolean', 'description' => 'The plan includes homepage / site title / tagline' ),
 					'theme'    => array( 'type' => 'boolean', 'description' => 'The plan includes the theme look: header, footer, colours, fonts (theme_settings_set, widgets_set)' ),
-					'plugins'  => array( 'type' => 'array', 'items' => array( 'type' => 'string' ), 'description' => 'WordPress.org slugs the plan needs, e.g. contact-form-7' ),
+					'plugins'  => array( 'type' => 'array', 'items' => array( 'type' => 'string' ), 'description' => 'WordPress.org plugin slugs the plan needs, e.g. contact-form-7. On a fresh site list wpvivid-backuprestore first (for the backup).' ),
+					'themes'   => array( 'type' => 'array', 'items' => array( 'type' => 'string' ), 'description' => 'WordPress.org theme slugs to install and activate with theme_install, e.g. kadence' ),
+					'trash'    => array( 'type' => 'array', 'items' => array( 'type' => 'integer' ), 'description' => 'Ids of existing pages/posts to move to the Trash with content_trash, e.g. WordPress\'s "Hello world!" post and "Sample Page"' ),
 					'launch'   => array( 'type' => 'string', 'enum' => array( 'auto', 'button' ), 'default' => 'button' ),
 					'mockups'  => array( 'type' => 'string', 'description' => 'Link to the approved mockups' ),
 					'mindmap'  => array( 'type' => 'integer', 'description' => 'FB Mind Map id of the plan, if any' ),
@@ -167,6 +169,20 @@ class FBCC_Plan {
 		if ( $plugins ) {
 			$extra[] = 'plugins: ' . implode( ', ', $plugins );
 		}
+		$themes = array_values( array_filter( array_map( 'sanitize_key', (array) ( $a['themes'] ?? array() ) ) ) );
+		if ( $themes ) {
+			$extra[] = 'theme: ' . implode( ', ', $themes );
+		}
+		$trash = array();
+		foreach ( array_slice( (array) ( $a['trash'] ?? array() ), 0, 20 ) as $tid ) {
+			$tp = get_post( (int) $tid );
+			if ( $tp && in_array( $tp->post_type, array( 'page', 'post' ), true ) && 'trash' !== $tp->post_status ) {
+				$trash[] = (int) $tid;
+			}
+		}
+		if ( $trash ) {
+			$extra[] = 'trash ' . count( $trash ) . ' default item' . ( 1 === count( $trash ) ? '' : 's' );
+		}
 		$np = count( array_filter( $pages, function ( $x ) { return 'page' === $x['type']; } ) );
 		$nb = count( $pages ) - $np;
 		$title = sanitize_text_field( (string) $a['title'] );
@@ -180,6 +196,8 @@ class FBCC_Plan {
 				'settings' => ! empty( $a['settings'] ),
 				'theme'    => ! empty( $a['theme'] ),
 				'plugins'  => $plugins,
+				'themes'   => $themes,
+				'trash'    => $trash,
 				'launch'   => $launch,
 				'mockups'  => esc_url_raw( (string) ( $a['mockups'] ?? '' ) ),
 				'mindmap'  => (int) ( $a['mindmap'] ?? 0 ),
@@ -247,6 +265,8 @@ class FBCC_Plan {
 			'settings'    => $p['settings'],
 			'theme'       => ! empty( $p['theme'] ),
 			'plugins'     => (array) ( $p['plugins'] ?? array() ),
+			'themes'      => (array) ( $p['themes'] ?? array() ),
+			'trash'       => (array) ( $p['trash'] ?? array() ),
 			'waiting_for_launch' => count( $p['queue'] ),
 			'expires'     => gmdate( 'Y-m-d', (int) $p['expires'] ),
 		);
@@ -304,6 +324,10 @@ class FBCC_Plan {
 				return ! empty( $p['theme'] );
 			case 'plugins_install':
 				return in_array( (string) ( $payload['slug'] ?? '' ), (array) ( $p['plugins'] ?? array() ), true );
+			case 'theme_install':
+				return in_array( (string) ( $payload['slug'] ?? '' ), (array) ( $p['themes'] ?? array() ), true );
+			case 'content_trash':
+				return in_array( (int) ( $payload['id'] ?? 0 ), array_map( 'intval', (array) ( $p['trash'] ?? array() ) ), true );
 		}
 		return false;
 	}
@@ -312,6 +336,19 @@ class FBCC_Plan {
 	 * Called instead of queueing an approval. Returns null when the plan does not cover it
 	 * (→ normal approval), or a result array when the plan handled it.
 	 */
+	/** The owner's approved plan lists this install, so the connector's own lab lock lets it through. */
+	public static function allows_site( $tool, array $args ) {
+		if ( ! in_array( $tool, array( 'plugins_install', 'theme_install' ), true ) ) {
+			return false;
+		}
+		$p = self::active();
+		if ( ! $p ) {
+			return false;
+		}
+		$slug = sanitize_key( (string) ( $args['slug'] ?? '' ) );
+		return self::covers( $tool, array( 'slug' => $slug ), $p );
+	}
+
 	public static function intercept( $tool, $title, array $payload ) {
 		$p = self::active();
 		if ( ! $p || ! self::covers( $tool, $payload, $p ) ) {
@@ -451,8 +488,15 @@ class FBCC_Plan {
 		if ( ! empty( $p['theme'] ) ) {
 			echo '<li><span>Header, footer, colours &amp; fonts</span><em>in plan</em></li>';
 		}
+		foreach ( (array) ( $p['themes'] ?? array() ) as $th ) {
+			echo '<li class="' . ( get_stylesheet() === $th ? 'live' : '' ) . '"><span>Theme: ' . esc_html( $th ) . '</span><em>' . ( get_stylesheet() === $th ? 'active' : ( wp_get_theme( $th )->exists() ? 'installed' : 'in plan' ) ) . '</em></li>';
+		}
 		foreach ( (array) ( $p['plugins'] ?? array() ) as $pl ) {
 			echo '<li><span>Plugin: ' . esc_html( $pl ) . '</span><em>' . ( is_dir( WP_PLUGIN_DIR . '/' . $pl ) ? 'installed' : 'in plan' ) . '</em></li>';
+		}
+		foreach ( (array) ( $p['trash'] ?? array() ) as $tid ) {
+			$tp = get_post( (int) $tid );
+			echo '<li class="' . ( $tp && 'trash' === $tp->post_status ? 'live' : '' ) . '"><span>Move to Trash: ' . esc_html( $tp ? $tp->post_title : '#' . (int) $tid ) . '</span><em>' . ( $tp && 'trash' === $tp->post_status ? 'in Trash' : 'in plan' ) . '</em></li>';
 		}
 		echo '</ul><div class="fbcc-row">';
 		if ( $p['queue'] ) {

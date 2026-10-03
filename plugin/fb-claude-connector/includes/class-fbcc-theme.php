@@ -110,6 +110,19 @@ class FBCC_Theme {
 			'prepare'     => array( __CLASS__, 'plugin_prepare' ),
 			'execute'     => array( __CLASS__, 'plugin_execute' ),
 		);
+		$t['theme_install'] = array(
+			'title'       => 'Install a theme',
+			'description' => 'Install a theme from WordPress.org by its slug (e.g. "kadence") and make it the active theme. The previous theme stays installed and can be switched back with the undo link. Needs the Site maintainer level; goes to approvals unless the build plan lists this theme (plan field "themes"). Take a backup first.',
+			'level'       => 'maintainer',
+			'kind'        => 'approval',
+			'site'        => true,
+			'schema'      => self::obj( array(
+				'slug'   => array( 'type' => 'string' ),
+				'reason' => array( 'type' => 'string' ),
+			), array( 'slug', 'reason' ) ),
+			'prepare'     => array( __CLASS__, 'theme_prepare' ),
+			'execute'     => array( __CLASS__, 'theme_execute' ),
+		);
 		$t['custom_css_set'] = array(
 			'title'       => 'Site CSS (Additional CSS)',
 			'description' => 'Set the site-wide Additional CSS of the active theme (Appearance → Customize → Additional CSS). Use it for styles that blocks cannot carry — <style> tags inside page content are removed. mode "append" adds to the existing CSS (default), "replace" swaps it. The previous CSS is kept for undo. Goes to approvals unless the build plan includes the theme.',
@@ -123,10 +136,10 @@ class FBCC_Theme {
 			'prepare'     => array( __CLASS__, 'css_prepare' ),
 			'execute'     => array( __CLASS__, 'css_execute' ),
 		);
-		if ( class_exists( 'WPCF7_ContactForm' ) ) {
+		{ // 1.2.1: always listed — a chat keeps the tool list it started with, and CF7 may be installed mid-build.
 			$t['form_create'] = array(
 				'title'       => 'Create a contact form',
-				'description' => 'Create a Contact Form 7 form. Returns the shortcode to place in a page (wrap it in a wp:shortcode block). Field types: text, email, tel, textarea, select, acceptance. Messages go to "recipient" (default: the site admin email).',
+				'description' => 'Create a Contact Form 7 form (install the plugin "contact-form-7" first). Returns the shortcode to place in a page (wrap it in a wp:shortcode block). Field types: text, email, tel, textarea, select, acceptance. Messages go to "recipient" (default: the site admin email).',
 				'level'       => 'editor',
 				'kind'        => 'write',
 				'schema'      => self::obj( array(
@@ -349,8 +362,14 @@ class FBCC_Theme {
 			wp_set_sidebars_widgets( $item['data']['sidebars'] );
 		} elseif ( 'css' === $item['kind'] ) {
 			wp_update_custom_css_post( (string) $item['data']['css'] );
+		} elseif ( 'theme' === $item['kind'] ) {
+			$prev = wp_get_theme( (string) $item['data']['stylesheet'] );
+			if ( ! $prev->exists() ) {
+				wp_die( 'The previous theme is no longer installed.' );
+			}
+			switch_theme( $prev->get_stylesheet() );
 		}
-		FBCC_Store::log( 'theme_settings_set', 'Restored the ' . ( 'mods' === $item['kind'] ? 'theme settings' : ( 'css' === $item['kind'] ? 'Additional CSS' : 'widget areas' ) ) . ' from ' . wp_date( 'j M H:i', (int) $item['time'] ), 'done' );
+		FBCC_Store::log( 'theme_settings_set', 'Restored the ' . ( 'mods' === $item['kind'] ? 'theme settings' : ( 'css' === $item['kind'] ? 'Additional CSS' : ( 'theme' === $item['kind'] ? 'previous theme' : 'widget areas' ) ) ) . ' from ' . wp_date( 'j M H:i', (int) $item['time'] ), 'done' );
 		wp_safe_redirect( admin_url( 'admin.php?page=fbcc&tab=activity&fbcc_msg=' . rawurlencode( 'Restored.' ) ) );
 		exit;
 	}
@@ -388,6 +407,69 @@ class FBCC_Theme {
 		}
 		return array(
 			'_summary' => 'Additional CSS ' . ( 'replace' === $p['mode'] ? 'replaced' : 'extended' ) . ' (' . size_format( strlen( $new ) ) . ' in total)',
+			'_undo'    => $undo,
+		);
+	}
+
+	/* -- themes -------------------------------------------------------- */
+
+	public static function theme_prepare( $a ) {
+		$slug = sanitize_key( (string) $a['slug'] );
+		if ( ! $slug ) {
+			return new WP_Error( 'bad_slug', 'Give the theme slug from WordPress.org.' );
+		}
+		$have = wp_get_theme( $slug );
+		if ( $have->exists() ) {
+			return array(
+				'title'   => ( get_stylesheet() === $slug ? 'Theme “' . $have->get( 'Name' ) . '” is already active' : 'Activate theme “' . $have->get( 'Name' ) . '” (installed)' ),
+				'payload' => array( 'slug' => $slug ),
+			);
+		}
+		require_once ABSPATH . 'wp-admin/includes/theme.php';
+		$info = themes_api( 'theme_information', array( 'slug' => $slug, 'fields' => array( 'sections' => false ) ) );
+		if ( is_wp_error( $info ) || empty( $info->download_link ) ) {
+			return new WP_Error( 'not_found', 'No theme “' . $slug . '” on WordPress.org.' );
+		}
+		return array(
+			'title'   => 'Install & activate theme “' . wp_strip_all_tags( $info->name ) . '” (' . $slug . ' ' . $info->version . ')',
+			'payload' => array( 'slug' => $slug ),
+		);
+	}
+
+	public static function theme_execute( $p ) {
+		require_once ABSPATH . 'wp-admin/includes/theme.php';
+		require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		require_once ABSPATH . 'wp-admin/includes/misc.php';
+		$slug  = sanitize_key( (string) $p['slug'] );
+		$theme = wp_get_theme( $slug );
+		if ( ! $theme->exists() ) {
+			$info = themes_api( 'theme_information', array( 'slug' => $slug, 'fields' => array( 'sections' => false ) ) );
+			if ( is_wp_error( $info ) ) {
+				return $info;
+			}
+			$up = new Theme_Upgrader( new Automatic_Upgrader_Skin() );
+			$ok = $up->install( $info->download_link );
+			if ( is_wp_error( $ok ) || ! $ok ) {
+				return new WP_Error( 'install_failed', 'Theme install failed' . ( is_wp_error( $ok ) ? ': ' . $ok->get_error_message() : '.' ) );
+			}
+			wp_clean_themes_cache();
+			$theme = wp_get_theme( $slug );
+			if ( ! $theme->exists() ) {
+				return new WP_Error( 'install_failed', 'Installed, but the theme folder “' . $slug . '” was not found.' );
+			}
+		}
+		$prev = get_stylesheet();
+		if ( $prev === $slug ) {
+			return array( '_summary' => 'Theme ' . $theme->get( 'Name' ) . ' is installed and already active' );
+		}
+		if ( $theme->errors() ) {
+			return new WP_Error( 'broken_theme', 'The theme is installed but broken: ' . $theme->errors()->get_error_message() );
+		}
+		$undo = self::backup( 'theme', array( 'stylesheet' => $prev ) );
+		switch_theme( $slug );
+		return array(
+			'_summary' => 'Theme ' . $theme->get( 'Name' ) . ' installed and active (was ' . $prev . ')',
 			'_undo'    => $undo,
 		);
 	}
@@ -455,7 +537,7 @@ class FBCC_Theme {
 
 	public static function form_create( $a ) {
 		if ( ! class_exists( 'WPCF7_ContactForm' ) ) {
-			return new WP_Error( 'no_cf7', 'Contact Form 7 is not active.' );
+			return new WP_Error( 'no_cf7', 'Contact Form 7 is not active. Install it with plugins_install slug "contact-form-7", then call form_create again.' );
 		}
 		if ( ! current_user_can( 'wpcf7_edit_contact_forms' ) ) {
 			return new WP_Error( 'forbidden', 'claude-agent may not create forms.' );

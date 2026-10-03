@@ -79,7 +79,7 @@ class FBCC_Live {
 		if ( 0 === strpos( $tool, 'media' ) || 0 === strpos( $tool, 'backup_' ) ) {
 			return 'media';
 		}
-		if ( in_array( $tool, array( 'menu_set', 'site_settings', 'theme_settings_set', 'theme_settings_get', 'widgets_set', 'plugins_install', 'custom_css_set', 'site_check' ), true ) ) {
+		if ( in_array( $tool, array( 'menu_set', 'site_settings', 'theme_settings_set', 'theme_settings_get', 'widgets_set', 'plugins_install', 'theme_install', 'custom_css_set', 'site_check' ), true ) ) {
 			return 'site';
 		}
 		if ( in_array( $tool, array( 'approvals_list' ), true ) ) {
@@ -207,6 +207,7 @@ class FBCC_Live {
 <div id="wl" class="wl" aria-live="polite">
 	<header class="wl-top">
 		<span class="wl-live"><i class="wl-dot"></i><b id="wl-state">IDLE</b></span>
+		<span class="wl-work" id="wl-work" hidden><span class="wl-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="wl-act" id="wl-act">Working…</span><span class="wl-sep">·</span><b class="wl-clock" id="wl-clock">0s</b></span>
 		<div class="wl-now">
 			<div class="wl-now-line"><span class="wl-step" id="wl-step"></span><strong id="wl-title">Nothing is running. Start a task in Claude and watch it here.</strong></div>
 			<div class="wl-bar"><i id="wl-bar"></i></div>
@@ -216,6 +217,7 @@ class FBCC_Live {
 			<span><b id="s-tokens">0</b> tok</span>
 			<a href="#" class="wl-chip-wait" id="s-wait-chip"><b id="s-wait">0</b> waiting</a>
 		</div>
+		<div class="wl-theme" role="group" aria-label="Screen theme"><button type="button" data-theme="light" aria-pressed="false">Light</button><button type="button" data-theme="dark" aria-pressed="false">Dark</button><button type="button" data-theme="auto" aria-pressed="true">Auto</button></div>
 		<div class="wl-vwrap">
 			<button type="button" class="wl-voicebtn" id="wl-voice" aria-pressed="false" aria-expanded="false" aria-controls="wl-vpop"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 010 7"/><path d="M18.5 5.5a9 9 0 010 13"/></svg><span id="wl-voice-t">Voice off</span></button>
 			<div class="wl-vpop" id="wl-vpop" role="dialog" aria-label="Voice briefs" hidden>
@@ -264,11 +266,14 @@ class FBCC_Live {
 			</div>
 		</main>
 
-		<aside class="wl-rail">
+		<aside class="wl-rail" id="wl-rail">
+			<div class="wl-grip" id="wl-grip" role="separator" aria-orientation="vertical" aria-label="Resize panel" title="Drag to resize · double-click to reset" tabindex="0"><span></span></div>
+			<span class="wl-wtip" id="wl-wtip">360 px</span>
 			<div class="wl-tabs" role="tablist">
 				<button type="button" role="tab" data-tab="now" aria-selected="true">Now</button>
 				<button type="button" role="tab" data-tab="approve" aria-selected="false">Approve (<span id="wl-tab-n">0</span>)</button>
 				<button type="button" role="tab" data-tab="feed" aria-selected="false">Feed</button>
+				<button type="button" class="wl-min" id="wl-min" title="Minimize panel ( ] )" aria-label="Minimize panel"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 6l6 6-6 6M5 6l6 6-6 6"/></svg></button>
 			</div>
 			<div class="wl-panel" data-panel="now">
 				<div class="wl-speak" id="wl-speak" hidden>
@@ -289,10 +294,19 @@ class FBCC_Live {
 				<p class="wl-muted">Approving reloads the site on the left and highlights what changed.</p>
 			</div>
 			<div class="wl-panel" data-panel="feed" hidden><ol class="wl-feed" id="wl-feed"></ol></div>
+			<div class="wl-mrail" id="wl-mrail">
+				<button type="button" class="wl-rb" data-open="now" title="Open panel" aria-label="Open panel"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 6l-6 6 6 6M19 6l-6 6 6 6"/></svg></button>
+				<button type="button" class="wl-rb is-brief" data-open="now" title="Last brief" aria-label="Last brief"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 010 7"/></svg></button>
+				<button type="button" class="wl-rb" data-open="approve" title="Approvals" aria-label="Approvals"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span class="wl-rn" id="wl-rn" hidden>0</span></button>
+				<button type="button" class="wl-rb" data-open="feed" title="Feed" aria-label="Feed"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg></button>
+				<div class="wl-rstep"><span class="wl-dots" aria-hidden="true"><i></i><i></i><i></i></span><span id="wl-rstep"></span></div>
+				<a class="wl-rb is-kill" href="<?php echo esc_url( admin_url( 'admin.php?page=fbcc' ) ); ?>" title="Kill switch" aria-label="Kill switch"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v9"/><path d="M6.3 7.5a8 8 0 1011.4 0"/></svg></a>
+			</div>
 			<footer class="wl-foot"><span id="wl-level">—</span><a href="<?php echo esc_url( admin_url( 'admin.php?page=fbcc' ) ); ?>">Kill switch</a></footer>
 		</aside>
 	</div>
 </div>
+<script>(function(){try{var r=document.getElementById('wl'),t=localStorage.getItem('fbcc_wl_theme')||'auto',d=t==='dark'||(t==='auto'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);if(d){r.classList.add('is-dark');}var s=JSON.parse(localStorage.getItem('fbcc_wl_side')||'null'),a=document.getElementById('wl-rail');if(s&&window.innerWidth>1000){if(s.w){a.style.width=a.style.flexBasis=s.w+'px';}if(s.min){a.classList.add('is-min');}}}catch(e){}})();</script>
 		<?php
 	}
 }

@@ -1,5 +1,5 @@
 === FB AI Engine – Claude Connector ===
-Version: 1.1.1
+Version: 1.2.1
 Requires at least: 6.4
 Requires PHP: 7.4
 License: GPLv2 or later
@@ -88,3 +88,30 @@ SetEnvIf Authorization "(.+)" HTTP_AUTHORIZATION=$1
 
 1.1.1
 - site_check compares a fresh copy of each page with what visitors actually get and reports pages where a CDN or page cache still serves an old version ("Visitors see an old cached copy" — purge the cache).
+
+1.2.1
+- form_create is always listed (it explains when Contact Form 7 is missing), so a build chat that installs CF7 can make the form without starting a new chat.
+
+1.2.0 — build a site from a fresh WordPress install
+- New tool theme_install: installs a free theme from WordPress.org and activates it; the previous theme can be switched back with the undo link.
+- New tool content_trash: moves a page or post to the Trash (restorable), e.g. the default "Hello world!" and "Sample Page". Never the homepage or the posts page.
+- Build plans can list themes and items to trash. Installs the owner approved in the plan work even while the lab lock is on (the AI Engine emergency and Online Lab locks still block everything).
+- Setup and Overview warn when the site uses Plain links (the connector address does not work then) with a one-click "Use post-name links" fix.
+- Without WPvivid, backup_create and backup_status now tell Claude to install wpvivid-backuprestore first.
+- Claude's instructions include the fresh-site order: WPvivid → backup → theme → plugins → clean-up → build.
+
+1.1.5
+- Fix: the side panel now keeps the width you drag it to (it jumped back to 360 px when you let go).
+
+1.1.4
+- Watch Me Live: drag the left edge of the side panel to make it wider or narrower (300–640 px, double-click to reset).
+- Minimize the side panel into a slim rail with the » button or the ] key. The rail keeps the last brief, approvals with a count badge, the feed, the step and the kill switch.
+- Dark theme for Watch Me Live: Light, Dark or Auto (follows your computer). Your website in the frame keeps its own colours.
+- Panel width, minimized state and theme are remembered on this computer.
+
+1.1.3
+- Watch Me Live: an orange glow around your site while Claude works (it breathes gently and fades out when the task is finished), like Claude in Chrome.
+
+1.1.2
+- Watch Me Live: a "working" pill next to LIVE with moving dots, what Claude is doing right now (Editing a page…, Using the browser…, Taking a backup… or Thinking…) and a running clock since the task started. When the task ends it shows "Finished" and the total time.
+- Admin bar badge: moving dots and the running time while Claude works.
