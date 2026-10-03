@@ -1,4 +1,4 @@
-/* FB AI Engine – Claude Connector 0.7.0
+/* FB AI Engine – Claude Connector 1.2.4
  * Runs ONLY in the browser the owner linked as "Claude's browser".
  * Reports the page, clicks and saves to Watch Me Live, and sends a sanitised copy of the screen.
  * Never copies: scripts, password values, hidden fields, nonces, anything inside .fbcc-private.
@@ -113,19 +113,45 @@
 		return '<!doctype html>' + clone.outerHTML;
 	}
 
+	/* ---------- page builders: mirror the page being built, not the editor chrome (1.2.4) ---------- */
+	function builderDoc() {
+		try {
+			if (window.elementor && window.elementor.$preview && window.elementor.$preview[0]) {
+				var d = window.elementor.$preview[0].contentDocument;
+				if (d && d.body && d.body.children.length) { return { doc: d, label: 'Elementor editor' }; }
+			}
+		} catch (e) {}
+		return null;
+	}
+	var watchedDoc = null;
+	function watchBuilder() {
+		var b = builderDoc();
+		if (!b || b.doc === watchedDoc) { return; }
+		watchedDoc = b.doc;
+		try {
+			new MutationObserver(function () { snapSoon(1500); }).observe(b.doc.documentElement, { subtree: true, childList: true, attributes: true, characterData: true });
+			b.doc.defaultView.addEventListener('scroll', function () { snapSoon(900); }, { passive: true });
+		} catch (e) {}
+		snapSoon(300);
+	}
+
 	var lastHtml = '', timer = null, sending = false;
 	function snap() {
 		timer = null;
 		if (sending || document.hidden) { return; }
-		var html;
-		try { html = serialize(document, 0); } catch (e) { return; }
+		var html, b = builderDoc(), src = b ? b.doc : document, ttl = b ? b.label + ' — ' + title() : title();
+		try {
+			html = serialize(src, b ? 1 : 0);
+			if (b) { html = html.replace(/<body([^>]*)>/i, '<body$1><div style="position:fixed;left:0;right:0;top:0;z-index:2147483647;background:#92003B;color:#fff;font:600 12px/1.3 system-ui,sans-serif;text-align:center;padding:5px 10px">' + b.label + '</div>'); }
+		} catch (e) { return; }
 		if (html === lastHtml) { return; }
 		lastHtml = html;
 		sending = true;
+		var win = b ? b.doc.defaultView : window;
 		var p = post(A.screen, {
-			url: location.href, title: title(), html: html,
-			w: window.innerWidth, h: window.innerHeight,
-			sx: Math.round(window.scrollX), sy: Math.round(window.scrollY)
+			url: location.href, title: ttl, html: html,
+			w: win.innerWidth, h: win.innerHeight,
+			sx: Math.round(win.scrollX), sy: Math.round(win.scrollY)
 		});
 		var done = function () { sending = false; };
 		if (p && p.then) { p.then(done, done); } else { done(); }
@@ -142,7 +168,8 @@
 		post(A.event, { type: 'page', url: location.href, title: title() });
 		snapSoon(400);
 		mo.observe(document.documentElement, { subtree: true, childList: true, attributes: true, characterData: true });
-		setInterval(function () { snapSoon(10); }, 8000); // catch canvas-free changes the observer missed
+		setInterval(function () { watchBuilder(); snapSoon(10); }, 8000); // catch canvas-free changes the observer missed
+		setInterval(watchBuilder, 1500);
 	}
 	if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', start); } else { start(); }
 })();

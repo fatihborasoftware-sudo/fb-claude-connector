@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.4 (3 October 2026)
+
+- Watch Me Live follows Claude inside the Elementor editor. The follow script also loads on Elementor's editor screen, and there it mirrors the page being built (the preview) with an "Elementor editor" label, instead of the editor itself.
+
 ## 1.2.3 (3 October 2026)
 
 - Fix: `backup_create` said "WPvivid is not active" on every site even though WPvivid was installed and active. WPvivid only loads its backup interface inside wp-admin, and Claude's requests are REST requests, not wp-admin; the connector now loads that interface itself. If it still cannot, the error says so and points to WPvivid's own *Backup Now*.

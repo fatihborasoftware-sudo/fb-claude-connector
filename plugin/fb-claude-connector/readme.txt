@@ -1,5 +1,5 @@
 === FB AI Engine – Claude Connector ===
-Version: 1.2.3
+Version: 1.2.4
 Requires at least: 6.4
 Requires PHP: 7.4
 License: GPLv2 or later
@@ -88,6 +88,9 @@ SetEnvIf Authorization "(.+)" HTTP_AUTHORIZATION=$1
 
 1.1.1
 - site_check compares a fresh copy of each page with what visitors actually get and reports pages where a CDN or page cache still serves an old version ("Visitors see an old cached copy" — purge the cache).
+
+1.2.4
+- Watch Me Live now follows Claude inside the Elementor editor. The follow script also loads on Elementor's editor screen, and there it mirrors the page being built (the preview) with an "Elementor editor" label, instead of the editor itself.
 
 1.2.3
 - Fix: backup_create said "WPvivid is not active" on every site even though WPvivid was installed and active. WPvivid only loads its backup interface inside wp-admin, and Claude's requests are not wp-admin requests; the connector now loads that interface itself. If it still cannot, the error says so and points to WPvivid's own Backup Now.

@@ -32,6 +32,9 @@ class FBCC_Browser {
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'agent_assets' ), 50 );
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'agent_assets' ), 50 );
 		add_action( 'customize_controls_enqueue_scripts', array( __CLASS__, 'agent_assets' ), 50 );
+		// Page builders run their own editor screens outside the normal admin hooks (1.2.4).
+		add_action( 'elementor/editor/after_enqueue_scripts', array( __CLASS__, 'agent_assets' ), 50 );
+		add_action( 'elementor/app/init', array( __CLASS__, 'agent_assets' ), 50 );
 		add_filter( 'admin_title', function ( $t ) {
 			return ( isset( $_GET['page'] ) && FBCC_Browser::PAGE === $_GET['page'] ) ? 'Link Claude’s browser ‹ ' . get_bloginfo( 'name' ) : $t; // phpcs:ignore
 		} );
