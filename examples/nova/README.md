@@ -5,6 +5,20 @@ Everything from the video: the mockup, the prompts and the build kit Claude used
 - Video (live build): https://www.youtube.com/watch?v=A6hJy2XQZ34
 - Lesson (Türkçe): https://fbsoftwaresolutions.com.tr/tutorials/claude-ve-wordpress-ile-site-yapimi-part-4-bos-wordpresse-tek-onayla-tum-site/
 
+![Nova Güzellik — homepage](screenshots/home-hero.jpg)
+
+## Screenshots
+
+| Home (full page) | Treatments | Prices |
+|---|---|---|
+| [![Home](screenshots/home-full.jpg)](screenshots/home-full.jpg) | [![Tedaviler](screenshots/tedaviler.jpg)](screenshots/tedaviler.jpg) | [![Fiyatlar](screenshots/fiyatlar.jpg)](screenshots/fiyatlar.jpg) |
+
+| Before & after + gallery | FAQ | Contact | Mobile |
+|---|---|---|---|
+| [![Öncesi ve sonrası](screenshots/oncesi-ve-sonrasi.jpg)](screenshots/oncesi-ve-sonrasi.jpg) | [![SSS](screenshots/sss.jpg)](screenshots/sss.jpg) | [![İletişim](screenshots/iletisim.jpg)](screenshots/iletisim.jpg) | [![Mobile](screenshots/mobile-home.jpg)](screenshots/mobile-home.jpg) |
+
+Click a picture to see it full size, or open the real pages: download [`mockup/`](mockup/) and open `index.html`.
+
 ## What's here
 
 | | |

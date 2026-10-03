@@ -93,7 +93,9 @@ A **build plan** replaces the separate approvals for everything it lists. Anythi
 
 Only free plugins and themes from WordPress.org can be installed this way.
 
-A complete worked example — the prompt and the build kit for an 8-page clinic site — is in [`examples/nova/`](examples/nova/).
+A complete worked example — the mockup, the prompts and the build kit for an 8-page clinic site — is in [`examples/nova/`](examples/nova/):
+
+[![Nova Güzellik, built by Claude from a blank WordPress](examples/nova/screenshots/home-hero.jpg)](examples/nova/)
 
 ## Safety
 
