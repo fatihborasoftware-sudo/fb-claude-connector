@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh api -X PUT repos/fatihborasoftware-sudo/fb-claude-connector/pulls/*/merge *)",
+      "Bash(gh api repos/fatihborasoftware-sudo/fb-claude-connector/releases *)",
+      "Bash(gh release create *)"
+    ]
+  }
+}
