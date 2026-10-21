@@ -91,7 +91,7 @@ class FBCC_Elementor {
 
 		$t['elementor_kit_set'] = array(
 			'title'       => 'Change Elementor Site Settings',
-			'description' => 'Change the Elementor kit (Site Settings): give the settings to change, with the same keys elementor_kit_get returns (e.g. system_colors, system_typography, button_background_color, button_text_color, body_typography_font_family). Each key you give replaces that key; other keys stay. Elementor CSS is regenerated. The previous settings are kept for undo. Goes to approvals unless the build plan includes the theme.',
+			'description' => 'Change the Elementor kit (Site Settings): give the settings to change, with the same keys elementor_kit_get returns (e.g. system_colors, system_typography, button_background_color, button_text_color, body_typography_font_family). Each key you give replaces that key; other keys stay. Elementor CSS is regenerated. The previous settings are kept for undo. Runs at once when the active build plan includes the theme; otherwise goes to approvals.',
 			'level'       => 'editor',
 			'kind'        => 'approval',
 			'schema'      => self::obj( array(
