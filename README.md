@@ -64,7 +64,7 @@ Claude never sees your password. It receives a key you can revoke at any time.
 
 A **build plan** replaces the separate approvals for everything it lists. Anything outside the plan still asks.
 
-## Tools (1.3.4)
+## Tools (1.3.5)
 
 **Read:** `site_health`, `site_check`, `content_list`, `content_get`, `plugins_list`, `media_list`, `backup_status`, `theme_settings_get`, `activity_recent`, `approvals_list`, `build_plan_status`, `task_status`
 
@@ -99,6 +99,7 @@ If your site uses Elementor, Claude now builds pages with real Elementor widgets
 
 - the current step and the whole plan, reported by Claude with `task_status`
 - your site at full size — still clickable — with Claude's changes outlined in orange
+- wherever Claude is working (new in 1.3.5): the preview moves to the page or admin screen of each call (Plugins, Backups, Media, Menus, Approvals …), scrolls to the Elementor element Claude reads or changes with a lime highlight, and switches to the tablet or mobile view it belongs to
 - **Claude's browser**: when Claude must use a screen no tool covers, it first opens *Link Claude's browser* and clicks **Link**. Watch Me Live then mirrors that browser: the page it is on, an orange marker on what it clicked, and a view-only copy of the screen. Only the linked browser reports; scripts, passwords, hidden fields and nonces are never copied. The link ends when the task is done, when you click Unlink, or after 2 hours.
 - **Voice briefs**: a start brief, each step, *waiting for you* and a finish brief, read aloud by your browser. Choose what to read, English or Türkçe, the voice and the speed.
 - a **working indicator**: moving dots, what Claude is doing right now and a running clock — plus an orange glow around your site while Claude works

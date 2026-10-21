@@ -70,6 +70,9 @@ class FBCC_Gateway {
 			}
 		}
 
+		// Watch Me Live follows Claude to the page or admin screen this call works on.
+		FBCC_Live::track( $name, $args );
+
 		$lock = self::lock_reason( $tool, $name, $args );
 		if ( $lock ) {
 			FBCC_Store::log( $name, 'Blocked: ' . $lock, 'blocked', '', $client_id );
