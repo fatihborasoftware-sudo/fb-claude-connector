@@ -257,8 +257,18 @@ class FBCC_MCP {
 						'isError' => true,
 					) );
 				}
+				// A tool can hand back a picture (page_screenshot); it goes out as an MCP image block, not as text.
+				$image = null;
+				if ( isset( $res['image']['data'], $res['image']['mimeType'] ) ) {
+					$image = array( 'type' => 'image', 'data' => $res['image']['data'], 'mimeType' => $res['image']['mimeType'] );
+					unset( $res['image'] );
+				}
+				$content = array( array( 'type' => 'text', 'text' => wp_json_encode( $res, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) ) );
+				if ( $image ) {
+					$content[] = $image;
+				}
 				return self::ok( $id, array(
-					'content'           => array( array( 'type' => 'text', 'text' => wp_json_encode( $res, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) ) ),
+					'content'           => $content,
 					'structuredContent' => (object) $res,
 					'isError'           => false,
 				) );

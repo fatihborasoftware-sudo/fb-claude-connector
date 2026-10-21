@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.2 (21 October 2026)
+
+- **page_screenshot** — Claude can now look at a page the way a visitor sees it, on a phone (the default), a tablet or a desktop, and check its own work by eye after a change. You no longer have to send screenshots. The picture is made by the free WordPress.com mShots service, so only public pages work, and a brand-new picture can take up to half a minute.
+
 ## 1.3.1 (21 October 2026)
 
 - The approved build plan now covers the Elementor tools too. **elementor_set** on a published page listed in the plan, and **elementor_kit_set** when the plan includes the theme, run at once instead of waiting in Approvals, just like content_update and custom_css_set already did. Anything outside the plan still goes to approval.
