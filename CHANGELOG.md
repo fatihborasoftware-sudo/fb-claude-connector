@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.3 (21 October 2026)
+
+- **Watch Me Live is now a design checker.** Three new buttons above the preview show your site the way it looks on a **desktop**, a **tablet** (768 px) or a **phone** (390 px).
+- **Send to Claude.** Click it, drag a box around the part that looks wrong (like the snipping tool on your PC), write what should change and press Send. Claude gets the picture, plus which Elementor widget you boxed, so it can fix exactly that. The first time, your browser asks whether it may capture this tab: choose this tab and allow it. You can also send the whole page in the current view, or upload a picture from your phone.
+- What you sent, and Claude's answer, appear under **Sent to Claude** on the Now panel.
+- New Claude tools: **feedback_list** (read what you sent) and **feedback_done** (mark it fixed, with a short answer you see in Watch Me Live). Pictures are kept privately in uploads/fbcc-feedback (the last 30), not in the media library.
+
 ## 1.3.2 (21 October 2026)
 
 - **page_screenshot** — Claude can now look at a page the way a visitor sees it, on a phone (the default), a tablet or a desktop, and check its own work by eye after a change. You no longer have to send screenshots. The picture is made by the free WordPress.com mShots service, so only public pages work, and a brand-new picture can take up to half a minute.

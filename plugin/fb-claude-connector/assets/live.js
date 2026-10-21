@@ -233,6 +233,7 @@
 	/* ---------- toast ---------- */
 	function toast(text, url) {
 		toastUrl = url;
+		$('wl-toast-go').hidden = !url;
 		$('wl-toast-t').textContent = text;
 		$('wl-toast').hidden = false;
 	}
@@ -544,6 +545,7 @@
 		lastPendCount = waitingNow;
 		renderPending(d.pending || []);
 		renderPlan(d.plan);
+		renderShots(d.shots || []);
 		$('wl-pend-empty').hidden = (d.pending || []).length > 0 || !!(d.plan && d.plan.ready);
 
 		browserFollow(d);
@@ -659,6 +661,181 @@
 		if (mq) { (mq.addEventListener ? mq.addEventListener('change', applyTheme) : mq.addListener(applyTheme)); }
 		applyTheme();
 	})();
+
+
+	/* ---------- preview size: desktop · tablet · mobile ---------- */
+	var VIEWS = { desktop: 0, tablet: 768, mobile: 390 }, view = 'desktop', scale = 1;
+	function fit() {
+		var box = frame.parentNode, w = VIEWS[view], W = box.clientWidth, H = box.clientHeight;
+		box.classList.toggle('is-device', !!w);
+		box.setAttribute('data-view', view);
+		if (!w) { frame.removeAttribute('style'); scale = 1; return; }
+		scale = Math.min(1, (W - 32) / w);
+		frame.style.width = w + 'px';
+		frame.style.height = Math.max(200, (H - 16) / scale) + 'px';
+		frame.style.left = Math.max(16, (W - w * scale) / 2) + 'px';
+		frame.style.top = '16px';
+		frame.style.right = 'auto';
+		frame.style.bottom = 'auto';
+		frame.style.transformOrigin = '0 0';
+		frame.style.transform = scale < 1 ? 'scale(' + scale + ')' : '';
+	}
+	function setView(v) {
+		view = VIEWS.hasOwnProperty(v) ? v : 'desktop';
+		Array.prototype.forEach.call(document.querySelectorAll('.wl-views button'), function (b) {
+			b.setAttribute('aria-pressed', b.getAttribute('data-view') === view ? 'true' : 'false');
+		});
+		try { window.localStorage.setItem('fbcc_wl_view', view); } catch (e) {}
+		fit();
+	}
+	Array.prototype.forEach.call(document.querySelectorAll('.wl-views button'), function (b) {
+		b.addEventListener('click', function () { setView(b.getAttribute('data-view')); });
+	});
+	window.addEventListener('resize', fit);
+	try { setView(window.localStorage.getItem('fbcc_wl_view') || 'desktop'); } catch (e) { setView('desktop'); }
+
+	/* ---------- Send to Claude: box a part of the page, add a note ---------- */
+	var stream = null, shot = { image: '', device: '', target: null };
+	function grab() {
+		var md = navigator.mediaDevices;
+		if (!md || !md.getDisplayMedia) { return Promise.reject(new Error('no-capture')); }
+		var ready = stream && stream.active ? Promise.resolve(stream) : md.getDisplayMedia({
+			video: { displaySurface: 'browser' }, audio: false, preferCurrentTab: true, selfBrowserSurface: 'include'
+		}).then(function (st) {
+			stream = st;
+			st.getVideoTracks()[0].addEventListener('ended', function () { stream = null; });
+			return st;
+		});
+		return ready.then(function (st) {
+			var v = document.createElement('video');
+			v.muted = true; v.srcObject = st;
+			return v.play().then(function () { return new Promise(function (r) { setTimeout(r, 350); }); }).then(function () {
+				var c = document.createElement('canvas');
+				c.width = v.videoWidth; c.height = v.videoHeight;
+				c.getContext('2d').drawImage(v, 0, 0);
+				v.srcObject = null;
+				return c;
+			});
+		});
+	}
+	function targetAt(cx, cy) {
+		var r = frame.getBoundingClientRect(), doc, el;
+		try { doc = frame.contentDocument; } catch (e) { return null; }
+		if (!doc || cx < r.left || cy < r.top || cx > r.right || cy > r.bottom) { return null; }
+		el = doc.elementFromPoint((cx - r.left) / scale, (cy - r.top) / scale);
+		if (!el) { return null; }
+		var t = { view: view + (VIEWS[view] ? ' · ' + VIEWS[view] + ' px' : ''), text: (el.innerText || el.alt || '').trim().slice(0, 160) };
+		var e = el.closest('[data-id]'), parents = [];
+		if (e) {
+			t.element = e.getAttribute('data-id');
+			t.widget = e.getAttribute('data-widget_type') || e.getAttribute('data-element_type') || '';
+			for (var p = e.parentElement && e.parentElement.closest('[data-id]'); p && parents.length < 4; p = p.parentElement && p.parentElement.closest('[data-id]')) { parents.push(p.getAttribute('data-id')); }
+			t.parents = parents;
+		}
+		var pg = el.closest('[data-elementor-id]'), m = (doc.body.className || '').match(/(?:page-id|postid|elementor-page)-(\d+)/);
+		t.page = pg ? pg.getAttribute('data-elementor-id') : (m ? m[1] : '');
+		return t;
+	}
+	function snip() {
+		var btn = $('wl-shot');
+		btn.disabled = true;
+		grab().then(function (c) {
+			btn.disabled = false;
+			var ov = $('wl-snip'), img = $('wl-snip-img'), box = $('wl-snip-box'), sx = c.width / window.innerWidth, sy = c.height / window.innerHeight, a = null;
+			img.src = c.toDataURL('image/png');
+			ov.hidden = false; box.hidden = true;
+			function pt(e) { return { x: e.clientX, y: e.clientY }; }
+			function rect(b) { return { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w: Math.abs(b.x - a.x), h: Math.abs(b.y - a.y) }; }
+			function close() { ov.hidden = true; ov.onpointerdown = ov.onpointermove = ov.onpointerup = null; document.removeEventListener('keydown', esc); }
+			function esc(e) { if (e.key === 'Escape') { close(); } }
+			document.addEventListener('keydown', esc);
+			ov.onpointerdown = function (e) { a = pt(e); ov.setPointerCapture(e.pointerId); };
+			ov.onpointermove = function (e) {
+				if (!a) { return; }
+				var q = rect(pt(e));
+				box.hidden = false;
+				box.style.cssText = 'left:' + q.x + 'px;top:' + q.y + 'px;width:' + q.w + 'px;height:' + q.h + 'px';
+			};
+			ov.onpointerup = function (e) {
+				if (!a) { return; }
+				var q = rect(pt(e));
+				if (q.w < 12 || q.h < 12) { var fr = frame.parentNode.getBoundingClientRect(); q = { x: fr.left, y: fr.top, w: fr.width, h: fr.height }; }
+				close();
+				var out = document.createElement('canvas');
+				out.width = Math.round(q.w * sx); out.height = Math.round(q.h * sy);
+				out.getContext('2d').drawImage(c, q.x * sx, q.y * sy, out.width, out.height, 0, 0, out.width, out.height);
+				var data = out.toDataURL('image/png');
+				if (data.length > 7000000) { data = out.toDataURL('image/jpeg', 0.85); }
+				openSend(data, 'screen', targetAt(q.x + q.w / 2, q.y + q.h / 2));
+			};
+		}).catch(function () {
+			btn.disabled = false;
+			openSend('', '', null, L('Your browser did not allow a screen capture. Send the whole page in this view, or upload a picture.'));
+		});
+	}
+	function openSend(image, device, target, msg) {
+		shot = { image: image, device: device, target: target };
+		var img = $('wl-send-img');
+		img.hidden = !image; if (image) { img.src = image; }
+		$('wl-send-what').textContent = target && target.element
+			? L('Boxed: %s %s on the %s view', target.widget ? target.widget.split('.')[0] : 'element', '#' + target.element, view)
+			: (image ? '' : L('No picture yet.'));
+		$('wl-send-msg').textContent = msg || '';
+		$('wl-send-go').disabled = false;
+		$('wl-send').hidden = false;
+		$('wl-send-note').focus();
+	}
+	function send(extra) {
+		var body = { note: $('wl-send-note').value, url: $('wl-newtab').href, device: shot.device || view, image: shot.image, target: shot.target || { view: view } };
+		for (var k in extra) { if (extra.hasOwnProperty(k)) { body[k] = extra[k]; } }
+		if (!body.image && body.device === 'screen') { body.device = view; }
+		$('wl-send-go').disabled = true;
+		$('wl-send-msg').textContent = body.image ? L('Sending…') : L('Taking a picture of the page… this can take half a minute.');
+		fetch(C.feedback, { method: 'POST', credentials: 'same-origin', headers: { 'X-WP-Nonce': C.nonce, 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+			.then(function (r) { return r.json(); })
+			.then(function (d) {
+				if (d && d.ok) {
+					$('wl-send').hidden = true;
+					$('wl-send-note').value = '';
+					toast(L('Sent to Claude. Tell Claude in chat: “check my screenshots”.'), '');
+					poll();
+				} else {
+					$('wl-send-go').disabled = false;
+					$('wl-send-msg').textContent = (d && d.message) || L('Could not send. Try again.');
+				}
+			})
+			.catch(function () { $('wl-send-go').disabled = false; $('wl-send-msg').textContent = L('Could not send. Try again.'); });
+	}
+	$('wl-shot').addEventListener('click', snip);
+	$('wl-send-go').addEventListener('click', function () { send({}); });
+	$('wl-send-x').addEventListener('click', function () { $('wl-send').hidden = true; });
+	$('wl-send-page').addEventListener('click', function () { shot = { image: '', device: view, target: { view: view } }; $('wl-send-img').hidden = true; send({}); });
+	$('wl-send-file').addEventListener('change', function () {
+		var f = this.files && this.files[0];
+		if (!f) { return; }
+		var fr = new FileReader();
+		fr.onload = function () { openSend(String(fr.result), 'upload', null); };
+		fr.readAsDataURL(f);
+		this.value = '';
+	});
+	document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('wl-send').hidden) { $('wl-send').hidden = true; } });
+
+	function renderShots(list) {
+		var ul = $('wl-shots');
+		$('wl-shots-k').hidden = !list.length;
+		ul.textContent = '';
+		list.forEach(function (i) {
+			var li = document.createElement('li');
+			var c = document.createElement('code'); c.textContent = i.time;
+			var b = document.createElement('div');
+			var n = document.createElement('span'); n.textContent = '#' + i.id + ' ' + (i.note || L('(no note)'));
+			var st = document.createElement('b'); st.className = 'wl-shot-st is-' + i.status; st.textContent = i.status === 'done' ? L('Fixed') : L('Waiting for Claude');
+			b.appendChild(n); b.appendChild(st);
+			if (i.answer) { var an = document.createElement('em'); an.textContent = i.answer; b.appendChild(an); }
+			li.appendChild(c); li.appendChild(b);
+			ul.appendChild(li);
+		});
+	}
 
 	go(C.home, false);
 	poll();

@@ -353,13 +353,43 @@ class FBCC_Elementor {
 			}
 			$url = get_permalink( $p );
 		} else {
-			$url = esc_url_raw( trim( (string) ( $a['url'] ?? '' ) ) );
-			if ( '' === $url ) {
-				$url = home_url( '/' );
-			}
-			if ( 0 === strpos( $url, '/' ) ) {
-				$url = home_url( $url );
-			}
+			$url = (string) ( $a['url'] ?? '' );
+		}
+		$shot = self::mshot( $url, (string) ( $a['device'] ?? 'mobile' ), (int) ( $a['height'] ?? 0 ) );
+		if ( is_wp_error( $shot ) ) {
+			return $shot;
+		}
+		if ( empty( $shot['jpeg'] ) ) {
+			return array(
+				'url'     => $shot['url'],
+				'device'  => $shot['device'],
+				'pending' => true,
+				'message' => 'The screenshot is still being made. Call page_screenshot again in about 20 seconds.',
+			);
+		}
+		return array(
+			'url'    => $shot['url'],
+			'device' => $shot['device'],
+			'width'  => $shot['width'],
+			'height' => $shot['height'],
+			'image'  => array(
+				'data'     => base64_encode( $shot['jpeg'] ),
+				'mimeType' => 'image/jpeg',
+			),
+		);
+	}
+
+	/**
+	 * A picture of a page on this site from WordPress.com mShots. Returns url, device, width, height
+	 * and jpeg (the bytes, or '' while mShots is still making it), or a WP_Error. Also used by FBCC_Feedback.
+	 */
+	public static function mshot( $url, $device = 'mobile', $height = 0 ) {
+		$url = esc_url_raw( trim( (string) $url ) );
+		if ( '' === $url ) {
+			$url = home_url( '/' );
+		}
+		if ( 0 === strpos( $url, '/' ) ) {
+			$url = home_url( $url );
 		}
 		$host = wp_parse_url( home_url(), PHP_URL_HOST );
 		if ( strtolower( (string) wp_parse_url( $url, PHP_URL_HOST ) ) !== strtolower( (string) $host ) ) {
@@ -370,11 +400,12 @@ class FBCC_Elementor {
 			'tablet'  => array( 768, 1024 ),
 			'desktop' => array( 1280, 800 ),
 		);
-		$device = isset( $sizes[ $a['device'] ?? '' ] ) ? $a['device'] : 'mobile';
+		$device = isset( $sizes[ $device ] ) ? $device : 'mobile';
 		list( $vpw, $vph ) = $sizes[ $device ];
-		if ( ! empty( $a['height'] ) ) {
-			$vph = min( 3000, max( 400, (int) $a['height'] ) );
+		if ( $height ) {
+			$vph = min( 3000, max( 400, (int) $height ) );
 		}
+		$out = array( 'url' => $url, 'device' => $device, 'width' => $vpw, 'height' => $vph, 'jpeg' => '' );
 		// A fresh query arg every minute, so mShots does not serve an old picture after a change.
 		$target = add_query_arg( 'fbcc_shot', (string) floor( time() / 60 ), $url );
 		$shot   = add_query_arg( array(
@@ -397,24 +428,11 @@ class FBCC_Elementor {
 			}
 			$type = (string) wp_remote_retrieve_header( $r, 'content-type' );
 			if ( 200 === (int) wp_remote_retrieve_response_code( $r ) && 0 === stripos( $type, 'image/jpeg' ) ) {
-				return array(
-					'url'    => $url,
-					'device' => $device,
-					'width'  => $vpw,
-					'height' => $vph,
-					'image'  => array(
-						'data'     => base64_encode( (string) wp_remote_retrieve_body( $r ) ),
-						'mimeType' => 'image/jpeg',
-					),
-				);
+				$out['jpeg'] = (string) wp_remote_retrieve_body( $r );
+				return $out;
 			}
 		}
-		return array(
-			'url'     => $url,
-			'device'  => $device,
-			'pending' => true,
-			'message' => 'The screenshot is still being made. Call page_screenshot again in about 20 seconds.',
-		);
+		return $out;
 	}
 
 	/* -- elementor_get / elementor_set ---------------------------------- */

@@ -167,6 +167,7 @@ class FBCC_Live {
 			'level'   => FBCC_Store::settings()['level'],
 			'locks'   => array( 'emergency' => FBCC_Store::emergency_lock(), 'lab' => FBCC_Store::lab_lock() ),
 			'live'    => (bool) FBCC_Store::task(),
+			'shots'   => FBCC_Feedback::recent(),
 		) );
 	}
 
@@ -187,6 +188,7 @@ class FBCC_Live {
 			'launch'   => esc_url_raw( rest_url( FBCC_NS . '/claude/launch' ) ),
 			'screen'   => esc_url_raw( rest_url( FBCC_NS . '/claude/screen' ) ),
 			'voiceApi' => esc_url_raw( rest_url( FBCC_NS . '/claude/voice' ) ),
+			'feedback' => esc_url_raw( rest_url( FBCC_NS . '/claude/feedback' ) ),
 			'linkPage' => FBCC_Browser::url(),
 			'name'     => wp_get_current_user()->first_name ? wp_get_current_user()->first_name : wp_get_current_user()->display_name,
 			'ui'       => FBCC_I18n::lang(),
@@ -250,12 +252,19 @@ class FBCC_Live {
 				<button type="button" class="wl-icon" id="wl-reload" aria-label="Reload">↻</button>
 				<div class="wl-addr"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg><span id="wl-host"></span><b id="wl-path">/</b></div>
 				<span class="wl-src" id="wl-src" hidden><i></i>Claude’s browser · mirrored live</span>
+				<div class="wl-views" role="group" aria-label="Preview size">
+					<button type="button" class="wl-icon" data-view="desktop" aria-pressed="true" title="Desktop" aria-label="Desktop"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg></button>
+					<button type="button" class="wl-icon" data-view="tablet" aria-pressed="false" title="Tablet · 768 px" aria-label="Tablet"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M11 18h2"/></svg></button>
+					<button type="button" class="wl-icon" data-view="mobile" aria-pressed="false" title="Mobile · 390 px" aria-label="Mobile"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg></button>
+				</div>
+				<button type="button" class="wl-shotbtn" id="wl-shot" title="Box a part of the page and send it to Claude to fix"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3"/><circle cx="12" cy="12" r="3"/></svg><span>Send to Claude</span></button>
 				<button type="button" class="wl-follow is-on" id="wl-follow" aria-pressed="true"><i></i><span>Following Claude</span></button>
 				<a class="wl-newtab" id="wl-newtab" href="<?php echo esc_url( home_url( '/' ) ); ?>" target="_blank" rel="noopener">New tab ↗</a>
 			</div>
 			<div class="wl-frame">
 				<iframe id="wl-frame" title="Your website — click around while Claude works"></iframe>
 				<div class="wl-screen" id="wl-screen" hidden><iframe id="wl-screen-f" title="Claude’s browser — live copy (view only)" sandbox="allow-same-origin" tabindex="-1"></iframe></div>
+				<div class="wl-snip" id="wl-snip" hidden><img id="wl-snip-img" alt=""><div class="wl-snip-box" id="wl-snip-box" hidden></div><p class="wl-snip-hint">Drag a box around the part Claude should fix · Esc to cancel</p></div>
 				<div class="wl-toast" id="wl-toast" hidden><i></i><span id="wl-toast-t"></span><button type="button" id="wl-toast-go">Show me</button><button type="button" class="wl-x" id="wl-toast-x" aria-label="Dismiss">✕</button></div>
 				<div class="wl-dock" aria-label="Where Claude is working">
 					<span class="wl-dock-k">CLAUDE IS IN</span>
@@ -286,6 +295,8 @@ class FBCC_Live {
 				<ol class="wl-plan" id="wl-plan"></ol>
 				<span class="wl-k">LAST ACTIONS</span>
 				<ul class="wl-mini" id="wl-mini"></ul>
+				<span class="wl-k" id="wl-shots-k" hidden>SENT TO CLAUDE</span>
+				<ul class="wl-shots" id="wl-shots"></ul>
 			</div>
 			<div class="wl-panel" data-panel="approve" hidden>
 				<div class="wl-planbox" id="wl-planbox" hidden></div>
@@ -305,6 +316,21 @@ class FBCC_Live {
 			<footer class="wl-foot"><span id="wl-level">—</span><a href="<?php echo esc_url( admin_url( 'admin.php?page=fbcc' ) ); ?>">Kill switch</a></footer>
 		</aside>
 	</div>
+<div class="wl-send" id="wl-send" role="dialog" aria-modal="true" aria-labelledby="wl-send-h" hidden>
+	<div class="wl-send-card">
+		<strong id="wl-send-h">Send to Claude</strong>
+		<img id="wl-send-img" alt="The part you boxed" hidden>
+		<p class="wl-muted" id="wl-send-what"></p>
+		<label class="wl-send-l" for="wl-send-note">What should Claude fix?</label>
+		<textarea id="wl-send-note" rows="3" placeholder="e.g. This text is too big on mobile"></textarea>
+		<details class="wl-send-more"><summary>Other ways to send a picture</summary>
+			<div class="wl-vrow"><button type="button" class="wl-btn ghost" id="wl-send-page">Whole page in this view</button><label class="wl-btn ghost wl-file">Upload a picture<input type="file" id="wl-send-file" accept="image/png,image/jpeg" hidden></label></div>
+		</details>
+		<p class="wl-muted" id="wl-send-msg" role="status"></p>
+		<div class="wl-vrow"><button type="button" class="wl-btn" id="wl-send-go">Send</button><button type="button" class="wl-btn ghost" id="wl-send-x">Cancel</button></div>
+		<p class="wl-muted">Then tell Claude in chat: “check my screenshots”.</p>
+	</div>
+</div>
 </div>
 <script>(function(){try{var r=document.getElementById('wl'),t=localStorage.getItem('fbcc_wl_theme')||'auto',d=t==='dark'||(t==='auto'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);if(d){r.classList.add('is-dark');}var s=JSON.parse(localStorage.getItem('fbcc_wl_side')||'null'),a=document.getElementById('wl-rail');if(s&&window.innerWidth>1000){if(s.w){a.style.width=a.style.flexBasis=s.w+'px';}if(s.min){a.classList.add('is-min');}}}catch(e){}})();</script>
 		<?php
