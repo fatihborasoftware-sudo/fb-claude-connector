@@ -1,5 +1,5 @@
 === FB AI Engine – Claude Connector ===
-Version: 1.2.4
+Version: 1.3.0
 Requires at least: 6.4
 Requires PHP: 7.4
 License: GPLv2 or later
@@ -88,6 +88,12 @@ SetEnvIf Authorization "(.+)" HTTP_AUTHORIZATION=$1
 
 1.1.1
 - site_check compares a fresh copy of each page with what visitors actually get and reports pages where a CDN or page cache still serves an old version ("Visitors see an old cached copy" — purge the cache).
+
+1.3.0
+- Elementor: elementor_get and elementor_set read and write a page's real Elementor widgets (whole page, an Elementor template export, or small changes by element id). The owner keeps editing the result in Elementor. The last 5 versions of each page are kept with an undo link. Live pages go to approval.
+- elementor_kit_get and elementor_kit_set read and change Elementor Site Settings (global colours, fonts, buttons). Changes always go to approval.
+- page_html shows a page the way visitors get it, or a CSS/JS file of the site.
+- snippets_list and snippet_get read the Code Snippets plugin (read-only).
 
 1.2.4
 - Watch Me Live now follows Claude inside the Elementor editor. The follow script also loads on Elementor's editor screen, and there it mirrors the page being built (the preview) with an "Elementor editor" label, instead of the editor itself.

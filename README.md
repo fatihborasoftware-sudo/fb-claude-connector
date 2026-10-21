@@ -26,7 +26,7 @@ Live demo and docs: the **Engine Lab** test site was built entirely through this
 ## Install
 
 1. **Back up your site first** (for example with WPvivid).
-2. Download **fb-claude-connector-1.2.4.zip** from the [latest release](https://github.com/fatihborasoftware-sudo/fb-claude-connector/releases/latest) (or from [`dist/`](dist/fb-claude-connector-1.2.4.zip)).
+2. Download **fb-claude-connector-1.3.0.zip** from the [latest release](https://github.com/fatihborasoftware-sudo/fb-claude-connector/releases/latest) (or from [`dist/`](dist/fb-claude-connector-1.3.0.zip)).
 3. In WordPress go to **Plugins → Add New → Upload Plugin**, choose the zip and activate it. A new screen appears: **Claude Connection**.
 4. Open **Claude Connection → Setup**, click **Run server check**, then **Run full test**. It should report `initialize: 200` and the number of tools.
 
@@ -60,7 +60,7 @@ Claude never sees your password. It receives a key you can revoke at any time.
 
 A **build plan** replaces the separate approvals for everything it lists. Anything outside the plan still asks.
 
-## Tools (1.2.4)
+## Tools (1.3.0)
 
 **Read:** `site_health`, `site_check`, `content_list`, `content_get`, `plugins_list`, `media_list`, `backup_status`, `theme_settings_get`, `activity_recent`, `approvals_list`, `build_plan_status`, `task_status`
 
@@ -71,6 +71,21 @@ A **build plan** replaces the separate approvals for everything it lists. Anythi
 **Plugins & themes (Site maintainer):** `plugins_install`, `plugins_update`, `theme_install`
 
 **With other plugins:** `form_create` (Contact Form 7), `mindmap_list`, `mindmap_get`, `mindmap_update` (FB Mind Map)
+
+**Elementor (new in 1.3.0):** `elementor_get`, `elementor_set` (approval for live pages), `elementor_kit_get`, `elementor_kit_set` (approval)
+
+**Look at the finished site (new in 1.3.0):** `page_html`, plus `snippets_list` and `snippet_get` to read the Code Snippets plugin (read-only)
+
+### Building with Elementor
+
+If your site uses Elementor, Claude now builds pages with real Elementor widgets: headings, text, buttons, images, icon boxes and forms. You can open any page Claude made in Elementor and change it yourself, the same way you would change your own work. Nothing is pasted as raw HTML.
+
+- **New pages:** Claude creates a draft and fills it with Elementor widgets.
+- **Small changes:** Claude changes just one heading or button. The rest of the page stays as it is.
+- **Undo:** the last 5 versions of each page are kept. The activity log has an undo link for every change.
+- **Site colours and fonts** (Elementor → Site Settings): Claude can change them too, but only after you approve.
+
+**Tip for beginners:** after installing a new version, start a **new chat** in Claude. A chat only knows the tools that existed when it started.
 
 ## Watch Me Live
 
