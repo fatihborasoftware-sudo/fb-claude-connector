@@ -4,6 +4,10 @@ Connect **Claude** to your **WordPress** site as a custom connector (a remote MC
 
 > It proposes. You approve. Then it acts.
 
+## ⬇️ [Download the plugin (ready to upload to WordPress)](https://github.com/fatihborasoftware-sudo/fb-claude-connector/raw/main/dist/fb-claude-connector.zip)
+
+One click downloads the latest version. In WordPress go to **Plugins → Add New → Upload Plugin**, choose the file and click **Install Now**. No unzipping needed.
+
 ![Approve once](images/banner-approve-once.webp)
 
 - **Approve once** — agree the mockups in chat, approve one *build plan*, and Claude builds the whole site: pages, blog posts, theme, menu and homepage.
@@ -26,7 +30,7 @@ Live demo and docs: the **Engine Lab** test site was built entirely through this
 ## Install
 
 1. **Back up your site first** (for example with WPvivid).
-2. Download **fb-claude-connector-1.3.0.zip** from the [latest release](https://github.com/fatihborasoftware-sudo/fb-claude-connector/releases/latest) (or from [`dist/`](dist/fb-claude-connector-1.3.0.zip)).
+2. [Download the plugin](https://github.com/fatihborasoftware-sudo/fb-claude-connector/raw/main/dist/fb-claude-connector.zip) (always the latest version; older versions are on the [releases page](https://github.com/fatihborasoftware-sudo/fb-claude-connector/releases)).
 3. In WordPress go to **Plugins → Add New → Upload Plugin**, choose the zip and activate it. A new screen appears: **Claude Connection**.
 4. Open **Claude Connection → Setup**, click **Run server check**, then **Run full test**. It should report `initialize: 200` and the number of tools.
 
