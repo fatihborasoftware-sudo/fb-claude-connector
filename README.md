@@ -64,7 +64,7 @@ Claude never sees your password. It receives a key you can revoke at any time.
 
 A **build plan** replaces the separate approvals for everything it lists. Anything outside the plan still asks.
 
-## Tools (1.3.3)
+## Tools (1.3.4)
 
 **Read:** `site_health`, `site_check`, `content_list`, `content_get`, `plugins_list`, `media_list`, `backup_status`, `theme_settings_get`, `activity_recent`, `approvals_list`, `build_plan_status`, `task_status`
 
@@ -78,7 +78,7 @@ A **build plan** replaces the separate approvals for everything it lists. Anythi
 
 **Elementor (new in 1.3.0):** `elementor_get`, `elementor_set` (approval for live pages, unless the build plan covers them), `elementor_kit_get`, `elementor_kit_set` (approval, unless the build plan includes the theme)
 
-**Your screenshots (new in 1.3.3):** `feedback_list`, `feedback_done`. In Watch Me Live you switch between desktop, tablet and mobile view, box a part of the page with **Send to Claude** and add a note; Claude reads it, fixes it and answers.
+**Your screenshots (new in 1.3.3):** `feedback_list`, `feedback_done`. In Watch Me Live you switch between desktop, tablet and mobile view, box a part of the page with **Send to Claude** and add a note; Claude reads it, fixes it and answers. Since 1.3.4 every tool reply tells Claude when screenshots are waiting, so it picks them up as soon as it works on the site, with no need to ask.
 
 **Look at the finished site:** `page_screenshot` (new in 1.3.2: a picture of a page on a phone, tablet or desktop), `page_html`, plus `snippets_list` and `snippet_get` to read the Code Snippets plugin (read-only)
 
