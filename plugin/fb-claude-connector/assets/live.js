@@ -13,6 +13,7 @@
 	var lastBrowser = { time: 0, url: '', title: '' }, lastConnectorTs = 0, screenSeq = 0, screenOn = false;
 	var snapshots = {};
 	var toastUrl = '';
+	var lastWhere = '', pendingEl = null;
 	var I = C.i18n || {};
 	function L(s) { var a = arguments, t = (I && I[s]) || s, i = 1; return t.replace(/%s/g, function () { return a[i++]; }); }
 	var LEVELS = { read: L('Read-only'), editor: L('Content editor'), maintainer: L('Site maintainer') };
@@ -228,7 +229,39 @@
 			if (first) { try { first.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {} }
 		}
 		snapshots[key] = texts;
+		markElement(doc);
 	});
+
+	/* ---------- follow Claude to where it works (1.3.5) ---------- */
+	// Lime outline on the Elementor element Claude is reading or changing, scrolled into view.
+	function markElement(doc) {
+		if (!pendingEl || Date.now() > pendingEl.until || !doc) { return; }
+		var el = doc.querySelector('.elementor-element-' + pendingEl.id);
+		if (!el) { return; }
+		if (!doc.getElementById('fbcc-here-st')) {
+			var st = doc.createElement('style');
+			st.id = 'fbcc-here-st';
+			st.textContent = '.fbcc-here{outline:3px solid #D4FF00!important;outline-offset:4px;box-shadow:0 0 0 9999px rgba(29,33,48,.18)!important;transition:outline-color .6s,box-shadow .6s}';
+			doc.head.appendChild(st);
+		}
+		Array.prototype.forEach.call(doc.querySelectorAll('.fbcc-here'), function (o) { o.classList.remove('fbcc-here'); });
+		el.classList.add('fbcc-here');
+		try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+		setTimeout(function () { el.classList.remove('fbcc-here'); }, 6000);
+	}
+	function followWhere(w) {
+		if (!w || !w.url) { return; }
+		if (!follow) { toast(L('Claude is working on %s', w.label || w.url), w.url); return; }
+		pendingEl = w.element ? { id: w.element, until: Date.now() + 15000 } : null;
+		if (w.view) { setView(w.view); }
+		if (clean(curUrl) === clean(w.url)) {
+			var doc = null;
+			try { doc = frame.contentDocument; } catch (e) {}
+			markElement(doc);
+		} else {
+			go(w.url, true);
+		}
+	}
 
 	/* ---------- toast ---------- */
 	function toast(text, url) {
@@ -549,6 +582,13 @@
 		$('wl-pend-empty').hidden = (d.pending || []).length > 0 || !!(d.plan && d.plan.ready);
 
 		browserFollow(d);
+
+		if (d.where && d.where.seq !== lastWhere) {
+			var firstWhere = lastWhere === '';
+			lastWhere = d.where.seq;
+			// Only fresh moves: opening Watch Me Live does not jump to an old one.
+			if (!firstWhere && (d.now - d.where.ts) < 120) { followWhere(d.where); }
+		}
 
 		if (d.preview && d.preview.stamp !== lastStamp) {
 			var firstTime = lastStamp === '';

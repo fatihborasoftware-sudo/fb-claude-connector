@@ -88,6 +88,129 @@ class FBCC_Live {
 		return 'plugins'; // site_health, plugins_*, settings, oauth …
 	}
 
+	/* -- where Claude is (1.3.5): the preview follows every call, not only saved pages -- */
+
+	const WHERE = 'fbcc_live_where';
+
+	/** Called by the gateway before a tool runs: remembers the screen that belongs to it. */
+	public static function track( $tool, array $args ) {
+		$w = self::where_for( $tool, $args );
+		if ( $w ) {
+			$w['seq'] = sprintf( '%.4f', microtime( true ) );
+			$w['ts']  = time();
+			update_option( self::WHERE, $w, false );
+		}
+	}
+
+	private static function post_url( $id ) {
+		$p = $id ? get_post( (int) $id ) : null;
+		if ( ! $p ) {
+			return '';
+		}
+		return 'publish' === $p->post_status ? get_permalink( $p ) : get_preview_post_link( $p );
+	}
+
+	/** The page or admin screen a tool works on: url, label, and for Elementor the element and view. */
+	public static function where_for( $tool, array $args ) {
+		$admin = function ( $path, $label ) {
+			return array( 'url' => admin_url( $path ), 'label' => $label );
+		};
+		$id = isset( $args['id'] ) ? (int) $args['id'] : 0;
+
+		switch ( $tool ) {
+			case 'content_get':
+			case 'content_update':
+			case 'content_publish':
+			case 'post_settings_set':
+			case 'page_html':
+			case 'elementor_get':
+			case 'elementor_set':
+				$url = self::post_url( $id );
+				if ( ! $url ) {
+					return null;
+				}
+				$el = '';
+				if ( 'elementor_get' === $tool && ! empty( $args['element'] ) ) {
+					$el = (string) $args['element'];
+				} elseif ( 'elementor_set' === $tool ) {
+					foreach ( (array) ( $args['patch'] ?? array() ) as $op ) {
+						if ( ! empty( $op['id'] ) ) {
+							$el = (string) $op['id'];
+							break;
+						}
+					}
+				}
+				return array( 'url' => $url, 'label' => html_entity_decode( get_the_title( $id ), ENT_QUOTES ), 'element' => sanitize_key( $el ) );
+			case 'page_screenshot':
+				$url = $id ? self::post_url( $id ) : esc_url_raw( (string) ( $args['url'] ?? '' ) );
+				if ( ! $url || wp_parse_url( $url, PHP_URL_HOST ) !== wp_parse_url( home_url(), PHP_URL_HOST ) ) {
+					return null;
+				}
+				$view = (string) ( $args['device'] ?? 'mobile' );
+				return array( 'url' => $url, 'label' => $id ? html_entity_decode( get_the_title( $id ), ENT_QUOTES ) : $url, 'view' => in_array( $view, array( 'mobile', 'tablet', 'desktop' ), true ) ? $view : 'mobile' );
+			case 'feedback_list':
+				$items = class_exists( 'FBCC_Feedback' ) ? FBCC_Feedback::items() : array();
+				if ( ! $id || empty( $items[ $id ] ) ) {
+					return null;
+				}
+				$t    = (array) ( $items[ $id ]['target'] ?? array() );
+				$url  = ! empty( $t['page'] ) ? self::post_url( $t['page'] ) : (string) $items[ $id ]['url'];
+				$view = '';
+				foreach ( array( 'mobile', 'tablet', 'desktop' ) as $v ) {
+					if ( false !== strpos( (string) ( $t['view'] ?? '' ), $v ) ) {
+						$view = $v;
+					}
+				}
+				return $url ? array( 'url' => $url, 'label' => 'screenshot #' . $id, 'element' => sanitize_key( (string) ( $t['element'] ?? '' ) ), 'view' => $view ) : null;
+			case 'content_list':
+				return $admin( 'edit.php?post_type=' . ( 'post' === ( $args['post_type'] ?? 'page' ) ? 'post' : 'page' ), 'Pages' );
+			case 'content_create_draft':
+				return $admin( 'edit.php?post_type=' . ( 'post' === ( $args['type'] ?? $args['post_type'] ?? 'page' ) ? 'post' : 'page' ), 'Pages' );
+			case 'content_trash':
+				return $admin( 'edit.php?post_status=trash&post_type=page', 'Trash' );
+			case 'plugins_list':
+			case 'plugins_install':
+			case 'plugins_update':
+				return $admin( 'plugins.php', 'Plugins' );
+			case 'theme_install':
+			case 'theme_settings_get':
+			case 'theme_settings_set':
+				return $admin( 'themes.php', 'Themes' );
+			case 'menu_set':
+				return $admin( 'nav-menus.php', 'Menus' );
+			case 'widgets_set':
+				return $admin( 'widgets.php', 'Widgets' );
+			case 'site_settings':
+				return $admin( 'options-general.php', 'Settings' );
+			case 'site_health':
+				return $admin( 'site-health.php', 'Site Health' );
+			case 'media_list':
+			case 'media_upload':
+			case 'media_upload_data':
+				return $admin( 'upload.php', 'Media' );
+			case 'backup_create':
+			case 'backup_status':
+				return $admin( 'admin.php?page=WPvivid', 'Backups' );
+			case 'form_create':
+				return $admin( 'admin.php?page=wpcf7', 'Contact forms' );
+			case 'snippets_list':
+			case 'snippet_get':
+				return $admin( 'admin.php?page=snippets', 'Code Snippets' );
+			case 'approvals_list':
+			case 'build_plan_status':
+			case 'build_plan_submit':
+				return $admin( 'admin.php?page=fbcc&tab=approvals', 'Approvals' );
+			case 'activity_recent':
+				return $admin( 'admin.php?page=fbcc', 'Claude Connection' );
+			case 'custom_css_set':
+			case 'site_check':
+			case 'elementor_kit_get':
+			case 'elementor_kit_set':
+				return array( 'url' => home_url( '/' ), 'label' => 'the site' );
+		}
+		return null;
+	}
+
 	public static function feed( WP_REST_Request $req ) {
 		global $wpdb;
 		$since = max( 0, (int) $req->get_param( 'since' ) );
@@ -168,6 +291,7 @@ class FBCC_Live {
 			'locks'   => array( 'emergency' => FBCC_Store::emergency_lock(), 'lab' => FBCC_Store::lab_lock() ),
 			'live'    => (bool) FBCC_Store::task(),
 			'shots'   => FBCC_Feedback::recent(),
+			'where'   => get_option( self::WHERE, null ),
 		) );
 	}
 
