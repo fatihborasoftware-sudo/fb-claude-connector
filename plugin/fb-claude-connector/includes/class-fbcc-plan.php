@@ -111,7 +111,7 @@ class FBCC_Plan {
 					),
 					'menu'     => array( 'type' => 'boolean', 'description' => 'The plan includes the main menu' ),
 					'settings' => array( 'type' => 'boolean', 'description' => 'The plan includes homepage / site title / tagline' ),
-					'theme'    => array( 'type' => 'boolean', 'description' => 'The plan includes the theme look: header, footer, colours, fonts (theme_settings_set, widgets_set)' ),
+					'theme'    => array( 'type' => 'boolean', 'description' => 'The plan includes the theme look: header, footer, colours, fonts (theme_settings_set, widgets_set, custom_css_set, elementor_kit_set)' ),
 					'plugins'  => array( 'type' => 'array', 'items' => array( 'type' => 'string' ), 'description' => 'WordPress.org plugin slugs the plan needs, e.g. contact-form-7. On a fresh site list wpvivid-backuprestore first (for the backup).' ),
 					'themes'   => array( 'type' => 'array', 'items' => array( 'type' => 'string' ), 'description' => 'WordPress.org theme slugs to install and activate with theme_install, e.g. kadence' ),
 					'trash'    => array( 'type' => 'array', 'items' => array( 'type' => 'integer' ), 'description' => 'Ids of existing pages/posts to move to the Trash with content_trash, e.g. WordPress\'s "Hello world!" post and "Sample Page"' ),
@@ -313,6 +313,7 @@ class FBCC_Plan {
 			case 'content_publish':
 			case 'content_update':
 			case 'post_settings_set':
+			case 'elementor_set':
 				return self::has_post( $p, $payload['id'] ?? 0 );
 			case 'menu_set':
 				return ! empty( $p['menu'] );
@@ -321,6 +322,7 @@ class FBCC_Plan {
 			case 'theme_settings_set':
 			case 'widgets_set':
 			case 'custom_css_set':
+			case 'elementor_kit_set':
 				return ! empty( $p['theme'] );
 			case 'plugins_install':
 				return in_array( (string) ( $payload['slug'] ?? '' ), (array) ( $p['plugins'] ?? array() ), true );

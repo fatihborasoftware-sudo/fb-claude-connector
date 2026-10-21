@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.1 (21 October 2026)
+
+- The approved build plan now covers the Elementor tools too. **elementor_set** on a published page listed in the plan, and **elementor_kit_set** when the plan includes the theme, run at once instead of waiting in Approvals, just like content_update and custom_css_set already did. Anything outside the plan still goes to approval.
+
 ## 1.3.0 (21 October 2026)
 
 - **elementor_get / elementor_set** — Claude reads and writes a page's real Elementor widgets: the whole page, an Elementor template export, or small patches by element id (set, delete, insert_after, append). The owner keeps editing the result in Elementor. The last 5 versions are kept per page with an undo link. Drafts change at once; published pages go to approval.

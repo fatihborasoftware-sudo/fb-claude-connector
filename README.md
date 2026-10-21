@@ -64,7 +64,7 @@ Claude never sees your password. It receives a key you can revoke at any time.
 
 A **build plan** replaces the separate approvals for everything it lists. Anything outside the plan still asks.
 
-## Tools (1.3.0)
+## Tools (1.3.1)
 
 **Read:** `site_health`, `site_check`, `content_list`, `content_get`, `plugins_list`, `media_list`, `backup_status`, `theme_settings_get`, `activity_recent`, `approvals_list`, `build_plan_status`, `task_status`
 
@@ -76,7 +76,7 @@ A **build plan** replaces the separate approvals for everything it lists. Anythi
 
 **With other plugins:** `form_create` (Contact Form 7), `mindmap_list`, `mindmap_get`, `mindmap_update` (FB Mind Map)
 
-**Elementor (new in 1.3.0):** `elementor_get`, `elementor_set` (approval for live pages), `elementor_kit_get`, `elementor_kit_set` (approval)
+**Elementor (new in 1.3.0):** `elementor_get`, `elementor_set` (approval for live pages, unless the build plan covers them), `elementor_kit_get`, `elementor_kit_set` (approval, unless the build plan includes the theme)
 
 **Look at the finished site (new in 1.3.0):** `page_html`, plus `snippets_list` and `snippet_get` to read the Code Snippets plugin (read-only)
 
