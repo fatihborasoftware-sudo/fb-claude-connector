@@ -251,9 +251,15 @@ class FBCC_MCP {
 				$name = isset( $params['name'] ) ? (string) $params['name'] : '';
 				$args = isset( $params['arguments'] ) && is_array( $params['arguments'] ) ? $params['arguments'] : array();
 				$res  = FBCC_Gateway::call( $name, $args, $token->client_id );
+				// Screenshots the owner sent from Watch Me Live and nobody answered yet (1.3.4): every reply says so.
+				$waiting = self::screenshots_waiting( $name );
 				if ( is_wp_error( $res ) ) {
+					$content = array( array( 'type' => 'text', 'text' => $res->get_error_message() ) );
+					if ( $waiting ) {
+						$content[] = array( 'type' => 'text', 'text' => $waiting );
+					}
 					return self::ok( $id, array(
-						'content' => array( array( 'type' => 'text', 'text' => $res->get_error_message() ) ),
+						'content' => $content,
 						'isError' => true,
 					) );
 				}
@@ -267,6 +273,9 @@ class FBCC_MCP {
 				if ( $image ) {
 					$content[] = $image;
 				}
+				if ( $waiting ) {
+					$content[] = array( 'type' => 'text', 'text' => $waiting );
+				}
 				return self::ok( $id, array(
 					'content'           => $content,
 					'structuredContent' => (object) $res,
@@ -279,6 +288,19 @@ class FBCC_MCP {
 				return self::ok( $id, array( 'prompts' => array() ) );
 		}
 		return self::err( $id, -32601, 'Method not found: ' . $method );
+	}
+
+	/** The notice added to a tool reply while the owner's screenshots wait, or '' when none do. */
+	private static function screenshots_waiting( $tool ) {
+		if ( in_array( $tool, array( 'feedback_list', 'feedback_done' ), true ) || ! class_exists( 'FBCC_Feedback' ) ) {
+			return '';
+		}
+		$n = FBCC_Feedback::open_count();
+		if ( ! $n ) {
+			return '';
+		}
+		return 'Note from the site: the owner sent ' . $n . ( 1 === $n ? ' new screenshot' : ' new screenshots' )
+			. ' from Watch Me Live that you have not answered yet. Call feedback_list now, fix what each one shows, then answer it with feedback_done.';
 	}
 
 	private static function instructions() {
