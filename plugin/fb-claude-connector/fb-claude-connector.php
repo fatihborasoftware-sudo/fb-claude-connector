@@ -2,7 +2,7 @@
 /**
  * Plugin Name: FB AI Engine – Claude Connector
  * Description: Lets Claude connect to this site as a remote MCP connector and work on it on your behalf — with permission levels, an approval queue, an activity log, the Online Lab write lock and a kill switch. Companion to FB Software AI Engine.
- * Version: 1.2.4
+ * Version: 1.3.0
  * Author: FB Software Solutions
  * Requires at least: 6.4
  * Requires PHP: 7.4
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'FBCC_VERSION', '1.2.4' );
+define( 'FBCC_VERSION', '1.3.0' );
 define( 'FBCC_FILE', __FILE__ );
 define( 'FBCC_DIR', plugin_dir_path( __FILE__ ) );
 define( 'FBCC_URL', plugin_dir_url( __FILE__ ) );
@@ -37,6 +37,7 @@ require_once FBCC_DIR . 'includes/class-fbcc-buildtools.php';
 require_once FBCC_DIR . 'includes/class-fbcc-browser.php';
 require_once FBCC_DIR . 'includes/class-fbcc-sitecheck.php';
 require_once FBCC_DIR . 'includes/class-fbcc-i18n.php';
+require_once FBCC_DIR . 'includes/class-fbcc-elementor.php';
 
 register_activation_hook( __FILE__, array( 'FBCC_Store', 'activate' ) );
 register_deactivation_hook( __FILE__, array( 'FBCC_Store', 'htaccess_remove' ) );
@@ -55,4 +56,5 @@ add_action( 'plugins_loaded', function () {
 	FBCC_Browser::init();
 	FBCC_SiteCheck::init();
 	FBCC_I18n::init();
+	FBCC_Elementor::init();
 } );

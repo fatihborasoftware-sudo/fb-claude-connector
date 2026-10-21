@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.0 (21 October 2026)
+
+- **elementor_get / elementor_set** — Claude reads and writes a page's real Elementor widgets: the whole page, an Elementor template export, or small patches by element id (set, delete, insert_after, append). The owner keeps editing the result in Elementor. The last 5 versions are kept per page with an undo link. Drafts change at once; published pages go to approval.
+- **elementor_kit_get / elementor_kit_set** — read and change Elementor Site Settings (global colours, fonts, button styles). Changes always go to approval and keep an undo copy.
+- **page_html** — read a page the way visitors get it (after Elementor, shortcodes, snippets and plugins) or a CSS/JS file of the site, with "find" to return only the parts around a text or class name.
+- **snippets_list / snippet_get** — read the Code Snippets plugin's snippets (read-only).
+
 ## 1.2.4 (3 October 2026)
 
 - Watch Me Live follows Claude inside the Elementor editor. The follow script also loads on Elementor's editor screen, and there it mirrors the page being built (the preview) with an "Elementor editor" label, instead of the editor itself.
