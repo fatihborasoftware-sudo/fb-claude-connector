@@ -48,6 +48,20 @@ class FBCC_Elementor {
 			'run'         => array( __CLASS__, 'page_html' ),
 		);
 
+		$t['page_screenshot'] = array(
+			'title'       => 'See a page',
+			'description' => 'A screenshot of a published page of this site, as a visitor sees it on a phone (device "mobile", 390 px wide, the default), a tablet or a desktop. Use it to check your work by eye after a change. The picture is made by the free WordPress.com mShots service, so only public pages work and a new picture can take up to half a minute; if "pending" comes back, call again shortly.',
+			'level'       => 'read',
+			'kind'        => 'read',
+			'schema'      => self::obj( array(
+				'id'     => array( 'type' => 'integer', 'description' => 'Page or post id' ),
+				'url'    => array( 'type' => 'string', 'description' => 'A URL on this site' ),
+				'device' => array( 'type' => 'string', 'enum' => array( 'mobile', 'tablet', 'desktop' ), 'default' => 'mobile' ),
+				'height' => array( 'type' => 'integer', 'minimum' => 400, 'maximum' => 3000, 'description' => 'How much of the page to show, in px from the top (default one screen)' ),
+			) ),
+			'run'         => array( __CLASS__, 'page_screenshot' ),
+		);
+
 		$t['elementor_get'] = array(
 			'title'       => 'Read Elementor widgets',
 			'description' => 'The Elementor content of a page or post: page settings and the element tree (containers, sections, widgets with their settings). outline=true returns only ids, types and a short label per element — read that first on big pages, then fetch one element with "element". Use the ids with elementor_set patches.',
@@ -327,6 +341,80 @@ class FBCC_Elementor {
 		$out['html']     = substr( $body, $offset, $length );
 		$out['has_more'] = $offset + $length < strlen( $body );
 		return $out;
+	}
+
+	/* -- page_screenshot ------------------------------------------------- */
+
+	public static function page_screenshot( $a ) {
+		if ( ! empty( $a['id'] ) ) {
+			$p = get_post( (int) $a['id'] );
+			if ( ! $p || 'publish' !== $p->post_status ) {
+				return new WP_Error( 'not_found', 'No published page or post with id ' . (int) $a['id'] . '. Drafts cannot be photographed.' );
+			}
+			$url = get_permalink( $p );
+		} else {
+			$url = esc_url_raw( trim( (string) ( $a['url'] ?? '' ) ) );
+			if ( '' === $url ) {
+				$url = home_url( '/' );
+			}
+			if ( 0 === strpos( $url, '/' ) ) {
+				$url = home_url( $url );
+			}
+		}
+		$host = wp_parse_url( home_url(), PHP_URL_HOST );
+		if ( strtolower( (string) wp_parse_url( $url, PHP_URL_HOST ) ) !== strtolower( (string) $host ) ) {
+			return new WP_Error( 'other_site', 'Only pages on this site (' . $host . ') can be photographed.' );
+		}
+		$sizes  = array(
+			'mobile'  => array( 390, 844 ),
+			'tablet'  => array( 768, 1024 ),
+			'desktop' => array( 1280, 800 ),
+		);
+		$device = isset( $sizes[ $a['device'] ?? '' ] ) ? $a['device'] : 'mobile';
+		list( $vpw, $vph ) = $sizes[ $device ];
+		if ( ! empty( $a['height'] ) ) {
+			$vph = min( 3000, max( 400, (int) $a['height'] ) );
+		}
+		// A fresh query arg every minute, so mShots does not serve an old picture after a change.
+		$target = add_query_arg( 'fbcc_shot', (string) floor( time() / 60 ), $url );
+		$shot   = add_query_arg( array(
+			'w'   => min( $vpw, 1280 ),
+			'vpw' => $vpw,
+			'vph' => $vph,
+		), 'https://s0.wp.com/mshots/v1/' . rawurlencode( $target ) );
+
+		for ( $try = 0; $try < 4; $try++ ) {
+			if ( $try ) {
+				sleep( 5 );
+			}
+			$r = wp_remote_get( $shot, array(
+				'timeout'     => 20,
+				'redirection' => 0,
+				'user-agent'  => 'FB-Claude-Connector/' . FBCC_VERSION . '; ' . home_url(),
+			) );
+			if ( is_wp_error( $r ) ) {
+				return new WP_Error( 'shot_failed', 'Could not reach the screenshot service: ' . $r->get_error_message() );
+			}
+			$type = (string) wp_remote_retrieve_header( $r, 'content-type' );
+			if ( 200 === (int) wp_remote_retrieve_response_code( $r ) && 0 === stripos( $type, 'image/jpeg' ) ) {
+				return array(
+					'url'    => $url,
+					'device' => $device,
+					'width'  => $vpw,
+					'height' => $vph,
+					'image'  => array(
+						'data'     => base64_encode( (string) wp_remote_retrieve_body( $r ) ),
+						'mimeType' => 'image/jpeg',
+					),
+				);
+			}
+		}
+		return array(
+			'url'     => $url,
+			'device'  => $device,
+			'pending' => true,
+			'message' => 'The screenshot is still being made. Call page_screenshot again in about 20 seconds.',
+		);
 	}
 
 	/* -- elementor_get / elementor_set ---------------------------------- */
