@@ -99,26 +99,28 @@ class FBCC_Theme {
 		);
 		$t['plugins_install'] = array(
 			'title'       => 'Install a plugin',
-			'description' => 'Install and activate a plugin from WordPress.org by its slug (e.g. "contact-form-7"). Needs the Site maintainer level; blocked while the lab lock is on; goes to approvals unless the build plan lists this plugin.',
+			'description' => 'Install and activate a plugin from WordPress.org by its slug (e.g. "contact-form-7"), or from a zip file: give zip_url (https, e.g. a GitHub release or raw dist zip) and the plugin\'s folder name as slug. A zip replaces an installed copy of the same plugin, so it also updates plugins that are not on WordPress.org (including this connector). Needs the Site maintainer level; blocked while the lab lock is on; goes to approvals unless the build plan lists this plugin.',
 			'level'       => 'maintainer',
 			'kind'        => 'approval',
 			'site'        => true,
 			'schema'      => self::obj( array(
-				'slug'   => array( 'type' => 'string' ),
-				'reason' => array( 'type' => 'string' ),
+				'slug'    => array( 'type' => 'string', 'description' => 'WordPress.org slug, or the plugin folder name inside the zip' ),
+				'zip_url' => array( 'type' => 'string', 'description' => 'Optional https address of a plugin zip' ),
+				'reason'  => array( 'type' => 'string' ),
 			), array( 'slug', 'reason' ) ),
 			'prepare'     => array( __CLASS__, 'plugin_prepare' ),
 			'execute'     => array( __CLASS__, 'plugin_execute' ),
 		);
 		$t['theme_install'] = array(
 			'title'       => 'Install a theme',
-			'description' => 'Install a theme from WordPress.org by its slug (e.g. "kadence") and make it the active theme. The previous theme stays installed and can be switched back with the undo link. Needs the Site maintainer level; goes to approvals unless the build plan lists this theme (plan field "themes"). Take a backup first.',
+			'description' => 'Install a theme from WordPress.org by its slug (e.g. "kadence"), or from a zip file (zip_url, https, with the theme\'s folder name as slug), and make it the active theme. A zip replaces an installed copy of the same theme. The previous theme stays installed and can be switched back with the undo link. Needs the Site maintainer level; goes to approvals unless the build plan lists this theme (plan field "themes"). Take a backup first.',
 			'level'       => 'maintainer',
 			'kind'        => 'approval',
 			'site'        => true,
 			'schema'      => self::obj( array(
-				'slug'   => array( 'type' => 'string' ),
-				'reason' => array( 'type' => 'string' ),
+				'slug'    => array( 'type' => 'string', 'description' => 'WordPress.org slug, or the theme folder name inside the zip' ),
+				'zip_url' => array( 'type' => 'string', 'description' => 'Optional https address of a theme zip' ),
+				'reason'  => array( 'type' => 'string' ),
 			), array( 'slug', 'reason' ) ),
 			'prepare'     => array( __CLASS__, 'theme_prepare' ),
 			'execute'     => array( __CLASS__, 'theme_execute' ),
@@ -199,7 +201,9 @@ class FBCC_Theme {
 			'settings'       => (object) $out,
 			'widget_areas'   => $areas,
 			'menu_locations' => get_registered_nav_menus(),
-			'note'           => $keys ? '' : 'Settings never changed keep the theme default and are not listed. Kadence: set kadence_global_palette as a JSON string; fonts as arrays like {"family":"Manrope","google":true,"variant":"regular","weight":"400"}.',
+			'block_theme'    => function_exists( 'wp_is_block_theme' ) && wp_is_block_theme(),
+			'page_templates' => (object) $theme->get_page_templates( null, 'page' ),
+			'note'           => $keys ? '' : 'Block themes have no menu locations: menu_set writes their Navigation instead. Settings never changed keep the theme default and are not listed. Kadence: set kadence_global_palette as a JSON string; fonts as arrays like {"family":"Manrope","google":true,"variant":"regular","weight":"400"}.',
 		);
 	}
 
@@ -413,10 +417,29 @@ class FBCC_Theme {
 
 	/* -- themes -------------------------------------------------------- */
 
+	/** A zip address Claude may install from: https only, no private hosts. '' when invalid. */
+	public static function zip_url( $url ) {
+		$url = esc_url_raw( trim( (string) $url ) );
+		if ( 0 !== strpos( $url, 'https://' ) || ! wp_http_validate_url( $url ) ) {
+			return '';
+		}
+		return $url;
+	}
+
 	public static function theme_prepare( $a ) {
 		$slug = sanitize_key( (string) $a['slug'] );
 		if ( ! $slug ) {
 			return new WP_Error( 'bad_slug', 'Give the theme slug from WordPress.org.' );
+		}
+		if ( ! empty( $a['zip_url'] ) ) {
+			$zip = self::zip_url( $a['zip_url'] );
+			if ( ! $zip ) {
+				return new WP_Error( 'bad_url', 'zip_url must be a public https address.' );
+			}
+			return array(
+				'title'   => ( wp_get_theme( $slug )->exists() ? 'Replace and activate' : 'Install & activate' ) . ' theme “' . $slug . '” from ' . wp_parse_url( $zip, PHP_URL_HOST ) . ' (' . basename( (string) wp_parse_url( $zip, PHP_URL_PATH ) ) . ')',
+				'payload' => array( 'slug' => $slug, 'zip_url' => $zip ),
+			);
 		}
 		$have = wp_get_theme( $slug );
 		if ( $have->exists() ) {
@@ -443,7 +466,27 @@ class FBCC_Theme {
 		require_once ABSPATH . 'wp-admin/includes/misc.php';
 		$slug  = sanitize_key( (string) $p['slug'] );
 		$theme = wp_get_theme( $slug );
-		if ( ! $theme->exists() ) {
+		if ( ! empty( $p['zip_url'] ) ) {
+			$zip = self::zip_url( $p['zip_url'] );
+			if ( ! $zip ) {
+				return new WP_Error( 'bad_url', 'zip_url must be a public https address.' );
+			}
+			$up = new Theme_Upgrader( new Automatic_Upgrader_Skin() );
+			$ok = $up->install( $zip, array( 'overwrite_package' => true ) );
+			if ( is_wp_error( $ok ) || ! $ok ) {
+				$msgs = $up->skin->get_errors()->get_error_messages();
+				return new WP_Error( 'install_failed', 'Theme install failed' . ( is_wp_error( $ok ) ? ': ' . $ok->get_error_message() : ( $msgs ? ': ' . implode( ' ', $msgs ) : '.' ) ) );
+			}
+			wp_clean_themes_cache();
+			$got = $up->theme_info();
+			if ( $got && $got->get_stylesheet() !== $slug ) {
+				return new WP_Error( 'wrong_slug', 'The zip installed the theme “' . $got->get_stylesheet() . '”, not “' . $slug . '”. Call theme_install again with slug "' . $got->get_stylesheet() . '" to activate it.' );
+			}
+			$theme = wp_get_theme( $slug );
+			if ( ! $theme->exists() ) {
+				return new WP_Error( 'install_failed', 'Installed, but the theme folder “' . $slug . '” was not found.' );
+			}
+		} elseif ( ! $theme->exists() ) {
 			$info = themes_api( 'theme_information', array( 'slug' => $slug, 'fields' => array( 'sections' => false ) ) );
 			if ( is_wp_error( $info ) ) {
 				return $info;
@@ -481,6 +524,16 @@ class FBCC_Theme {
 		if ( ! $slug ) {
 			return new WP_Error( 'bad_slug', 'Give the plugin slug from WordPress.org.' );
 		}
+		if ( ! empty( $a['zip_url'] ) ) {
+			$zip = self::zip_url( $a['zip_url'] );
+			if ( ! $zip ) {
+				return new WP_Error( 'bad_url', 'zip_url must be a public https address.' );
+			}
+			return array(
+				'title'   => ( is_dir( WP_PLUGIN_DIR . '/' . $slug ) ? 'Update' : 'Install & activate' ) . ' plugin “' . $slug . '” from ' . wp_parse_url( $zip, PHP_URL_HOST ) . ' (' . basename( (string) wp_parse_url( $zip, PHP_URL_PATH ) ) . ')',
+				'payload' => array( 'slug' => $slug, 'zip_url' => $zip ),
+			);
+		}
 		require_once ABSPATH . 'wp-admin/includes/plugin-install.php';
 		$info = plugins_api( 'plugin_information', array( 'slug' => $slug, 'fields' => array( 'sections' => false ) ) );
 		if ( is_wp_error( $info ) ) {
@@ -506,7 +559,31 @@ class FBCC_Theme {
 				break;
 			}
 		}
-		if ( ! $file ) {
+		if ( ! empty( $p['zip_url'] ) ) {
+			$zip = self::zip_url( $p['zip_url'] );
+			if ( ! $zip ) {
+				return new WP_Error( 'bad_url', 'zip_url must be a public https address.' );
+			}
+			$was_active = $file && is_plugin_active( $file );
+			$up         = new Plugin_Upgrader( new Automatic_Upgrader_Skin() );
+			$ok         = $up->install( $zip, array( 'overwrite_package' => true ) );
+			if ( is_wp_error( $ok ) || ! $ok ) {
+				$msgs = $up->skin->get_errors()->get_error_messages();
+				return new WP_Error( 'install_failed', 'Install failed' . ( is_wp_error( $ok ) ? ': ' . $ok->get_error_message() : ( $msgs ? ': ' . implode( ' ', $msgs ) : '.' ) ) );
+			}
+			wp_clean_plugins_cache();
+			$file = $up->plugin_info();
+			if ( $file && 0 !== strpos( $file, $slug . '/' ) ) {
+				return new WP_Error( 'wrong_slug', 'The zip installed “' . $file . '”, not a plugin in the folder “' . $slug . '”. It is installed but was not activated.' );
+			}
+			if ( $was_active && $file && is_plugin_active( $file ) ) {
+				$data = get_plugin_data( WP_PLUGIN_DIR . '/' . $file, false, false );
+				return array(
+					'_summary' => 'Plugin ' . $slug . ' updated from zip to ' . $data['Version'],
+					'_undo'    => admin_url( 'plugins.php' ),
+				);
+			}
+		} elseif ( ! $file ) {
 			$info = plugins_api( 'plugin_information', array( 'slug' => $slug, 'fields' => array( 'sections' => false ) ) );
 			if ( is_wp_error( $info ) ) {
 				return $info;

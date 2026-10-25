@@ -114,15 +114,17 @@ class FBCC_Tools {
 
 		$t['content_update'] = array(
 			'title'       => 'Edit a page or post',
-			'description' => 'Change title, content or excerpt. Drafts are updated at once. A PUBLISHED item is not changed: the edit is sent to the owner for approval. Always give a reason.',
+			'description' => 'Change title, content, excerpt, slug (the address, e.g. "magaza") or page template (a template slug from theme_settings_get "page_templates", "" = default). Drafts are updated at once. A PUBLISHED item is not changed: the edit is sent to the owner for approval, unless the build plan covers it. Always give a reason.',
 			'level'       => 'editor',
 			'kind'        => 'write',
 			'schema'      => self::schema( array(
 				'id'      => array( 'type' => 'integer' ),
 				'title'   => array( 'type' => 'string' ),
 				'content' => array( 'type' => 'string' ),
-				'excerpt' => array( 'type' => 'string' ),
-				'reason'  => array( 'type' => 'string', 'description' => 'Why, in one sentence — shown to the owner' ),
+				'excerpt'  => array( 'type' => 'string' ),
+				'slug'     => array( 'type' => 'string', 'description' => 'New address part, e.g. "magaza" (lowercase, dashes)' ),
+				'template' => array( 'type' => 'string', 'description' => 'Page template slug, e.g. "page-full"; "" = the default template' ),
+				'reason'   => array( 'type' => 'string', 'description' => 'Why, in one sentence — shown to the owner' ),
 			), array( 'id', 'reason' ) ),
 			'run'         => array( __CLASS__, 'content_update' ),
 		);
@@ -386,9 +388,22 @@ class FBCC_Tools {
 		if ( is_wp_error( $p ) ) {
 			return $p;
 		}
-		$changes = array_intersect_key( $a, array_flip( array( 'title', 'content', 'excerpt' ) ) );
+		$changes = array_intersect_key( $a, array_flip( array( 'title', 'content', 'excerpt', 'slug', 'template' ) ) );
 		if ( ! $changes ) {
-			return new WP_Error( 'nothing_to_change', 'Give at least one of title, content or excerpt.' );
+			return new WP_Error( 'nothing_to_change', 'Give at least one of title, content, excerpt, slug or template.' );
+		}
+		if ( isset( $changes['slug'] ) ) {
+			$changes['slug'] = sanitize_title( (string) $changes['slug'] );
+			if ( '' === $changes['slug'] ) {
+				return new WP_Error( 'bad_slug', 'The slug is empty after cleaning; use letters, numbers and dashes.' );
+			}
+		}
+		if ( isset( $changes['template'] ) ) {
+			$changes['template'] = (string) $changes['template'];
+			$ok = self::page_templates( $p );
+			if ( '' !== $changes['template'] && 'default' !== $changes['template'] && ! isset( $ok[ $changes['template'] ] ) ) {
+				return new WP_Error( 'bad_template', 'Unknown template “' . $changes['template'] . '”. This theme has: ' . ( $ok ? implode( ', ', array_keys( $ok ) ) : 'no page templates' ) . '.' );
+			}
 		}
 		if ( in_array( $p->post_status, array( 'publish', 'private', 'future' ), true ) ) {
 			$by_plan = FBCC_Plan::intercept( 'content_update', 'Update “' . get_the_title( $p ) . '”', array_merge( array( 'id' => $p->ID ), $changes ) );
@@ -429,16 +444,36 @@ class FBCC_Tools {
 		if ( isset( $changes['excerpt'] ) ) {
 			$data['post_excerpt'] = sanitize_textarea_field( $changes['excerpt'] );
 		}
+		if ( isset( $changes['slug'] ) ) {
+			$data['post_name'] = sanitize_title( $changes['slug'] );
+		}
+		if ( isset( $changes['template'] ) ) {
+			$data['page_template'] = in_array( $changes['template'], array( '', 'default' ), true ) ? 'default' : sanitize_text_field( $changes['template'] );
+		}
 		$r = wp_update_post( wp_slash( $data ), true );
 		if ( is_wp_error( $r ) ) {
 			return $r;
 		}
-		return array(
+		$final = get_post( (int) $id );
+		if ( isset( $changes['slug'] ) && $final && $final->post_name !== $data['post_name'] ) {
+			$changes['slug'] = $final->post_name; // WordPress made it unique
+		}
+		$out = array(
 			'_summary' => 'Updated “' . get_the_title( $id ) . '” (' . implode( ', ', array_keys( $changes ) ) . ')',
 			'_undo'    => $pre ? admin_url( 'revision.php?revision=' . (int) $pre ) : '',
 			'id'       => (int) $id,
 			'updated'  => array_keys( $changes ),
 		);
+		if ( isset( $changes['slug'] ) ) {
+			$out['slug'] = $changes['slug'];
+			$out['link'] = get_permalink( $id );
+		}
+		return $out;
+	}
+
+	/** Page templates the item may use: slug => name (classic templates and block-theme custom templates). */
+	public static function page_templates( WP_Post $p ) {
+		return (array) wp_get_theme()->get_page_templates( $p, $p->post_type );
 	}
 
 	/* ------------------------------------------------------------ */
