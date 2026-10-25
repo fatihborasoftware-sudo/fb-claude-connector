@@ -108,9 +108,11 @@ class FBCC_BuildTools {
 		// site_settings: also the site icon.
 		if ( isset( $t['site_settings'] ) ) {
 			$props = (array) $t['site_settings']['schema']['properties'];
-			$props['site_icon'] = array( 'type' => 'integer', 'description' => 'Attachment id of a square image (512×512 or larger)' );
+			$props['site_icon']  = array( 'type' => 'integer', 'description' => 'Attachment id of a square image (512×512 or larger)' );
+			$props['posts_page'] = array( 'type' => 'integer', 'description' => 'Page id that lists the blog posts (Settings → Reading); 0 = none' );
+			$props['logo']       = array( 'type' => 'integer', 'description' => 'Attachment id of the site logo (Site Logo block and the theme logo); 0 removes it' );
 			$t['site_settings']['schema']['properties'] = (object) $props;
-			$t['site_settings']['description']          = 'Set the homepage (a published page id), the site title, the tagline and/or the site icon (an image id). Goes to the approval queue unless the build plan includes site settings.';
+			$t['site_settings']['description']          = 'Set the homepage (a published page id), the posts page, the site title, the tagline, the logo and/or the site icon (image ids). Goes to the approval queue unless the build plan includes site settings.';
 			$t['site_settings']['prepare']              = array( __CLASS__, 'settings_prepare' );
 			$t['site_settings']['execute']              = array( __CLASS__, 'settings_execute' );
 		}
@@ -528,39 +530,85 @@ class FBCC_BuildTools {
 	/* -- site settings (+ site icon) ------------------------------------ */
 
 	public static function settings_prepare( $a ) {
-		$base = array_diff_key( $a, array( 'site_icon' => 1 ) );
+		$base = array_diff_key( $a, array( 'site_icon' => 1, 'posts_page' => 1, 'logo' => 1 ) );
 		$has  = isset( $base['front_page'] ) || ( isset( $base['title'] ) && '' !== $base['title'] ) || isset( $base['tagline'] );
 		$prep = $has ? FBCC_SiteTools::settings_prepare( $base ) : array( 'title' => 'Site settings', 'payload' => array() );
 		if ( is_wp_error( $prep ) ) {
 			return $prep;
 		}
+		$what = array();
 		if ( isset( $a['site_icon'] ) ) {
 			$icon = (int) $a['site_icon'];
 			if ( $icon && ! wp_attachment_is_image( $icon ) ) {
 				return new WP_Error( 'bad_image', 'site_icon must be an image id (see media_list).' );
 			}
 			$prep['payload']['site_icon'] = $icon;
-			$prep['title'] = ( $has ? $prep['title'] . ', ' : 'Site settings: ' ) . ( $icon ? 'site icon → image #' . $icon : 'remove site icon' );
+			$what[] = $icon ? 'site icon → image #' . $icon : 'remove site icon';
+		}
+		if ( isset( $a['logo'] ) ) {
+			$logo = (int) $a['logo'];
+			if ( $logo && ! wp_attachment_is_image( $logo ) ) {
+				return new WP_Error( 'bad_image', 'logo must be an image id (see media_list).' );
+			}
+			$prep['payload']['logo'] = $logo;
+			$what[] = $logo ? 'logo → image #' . $logo : 'remove logo';
+		}
+		if ( isset( $a['posts_page'] ) ) {
+			$pp = (int) $a['posts_page'];
+			if ( $pp && 'page' !== get_post_type( $pp ) ) {
+				return new WP_Error( 'bad_page', 'posts_page must be a page id.' );
+			}
+			if ( $pp && $pp === (int) ( $prep['payload']['front_page'] ?? get_option( 'page_on_front' ) ) ) {
+				return new WP_Error( 'bad_page', 'The posts page cannot be the homepage.' );
+			}
+			$prep['payload']['posts_page'] = $pp;
+			$what[] = $pp ? 'posts page → “' . get_the_title( $pp ) . '”' : 'no posts page';
+		}
+		if ( $what ) {
+			$prep['title'] = ( $has ? $prep['title'] . ', ' : 'Site settings: ' ) . implode( ', ', $what );
 		}
 		if ( ! $prep['payload'] ) {
-			return new WP_Error( 'nothing', 'Give front_page, title, tagline or site_icon.' );
+			return new WP_Error( 'nothing', 'Give front_page, posts_page, title, tagline, logo or site_icon.' );
 		}
 		return $prep;
 	}
 
 	public static function settings_execute( $p ) {
-		$base = array_diff_key( $p, array( 'site_icon' => 1 ) );
+		$base = array_diff_key( $p, array( 'site_icon' => 1, 'posts_page' => 1, 'logo' => 1 ) );
 		if ( $base ) {
 			$r = FBCC_SiteTools::settings_execute( $base );
 			if ( is_wp_error( $r ) ) {
 				return $r;
 			}
 		}
+		$done = array();
 		if ( isset( $p['site_icon'] ) ) {
 			update_option( 'site_icon', (int) $p['site_icon'] );
+			$done[] = 'site icon ' . ( $p['site_icon'] ? '#' . (int) $p['site_icon'] : 'removed' );
+		}
+		if ( isset( $p['logo'] ) ) {
+			// The Site Logo block reads the site_logo option; classic themes read the custom_logo theme mod.
+			if ( $p['logo'] ) {
+				update_option( 'site_logo', (int) $p['logo'] );
+				set_theme_mod( 'custom_logo', (int) $p['logo'] );
+			} else {
+				delete_option( 'site_logo' );
+				remove_theme_mod( 'custom_logo' );
+			}
+			$done[] = 'logo ' . ( $p['logo'] ? '#' . (int) $p['logo'] : 'removed' );
+		}
+		if ( isset( $p['posts_page'] ) ) {
+			if ( $p['posts_page'] && 'publish' !== get_post_status( (int) $p['posts_page'] ) ) {
+				return new WP_Error( 'not_published', 'Publish the posts page first, then approve this again.' );
+			}
+			update_option( 'page_for_posts', (int) $p['posts_page'] );
+			if ( $p['posts_page'] && 'page' !== get_option( 'show_on_front' ) && get_option( 'page_on_front' ) ) {
+				update_option( 'show_on_front', 'page' );
+			}
+			$done[] = 'posts page ' . ( $p['posts_page'] ? '#' . (int) $p['posts_page'] : 'none' );
 		}
 		return array(
-			'_summary' => 'Site settings updated' . ( isset( $p['site_icon'] ) ? ' (site icon ' . ( $p['site_icon'] ? '#' . (int) $p['site_icon'] : 'removed' ) . ')' : '' ),
+			'_summary' => 'Site settings updated' . ( $done ? ' (' . implode( ', ', $done ) . ')' : '' ),
 			'_undo'    => admin_url( 'options-general.php' ),
 		);
 	}

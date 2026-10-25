@@ -73,13 +73,13 @@ class FBCC_Live {
 		if ( 0 === strpos( $tool, 'mindmap' ) ) {
 			return 'mind';
 		}
-		if ( 0 === strpos( $tool, 'content' ) || in_array( $tool, array( 'form_create', 'post_settings_set' ), true ) ) {
+		if ( 0 === strpos( $tool, 'content' ) || in_array( $tool, array( 'form_create', 'post_settings_set', 'woo_products_list', 'woo_product_set' ), true ) ) {
 			return 'pages';
 		}
 		if ( 0 === strpos( $tool, 'media' ) || 0 === strpos( $tool, 'backup_' ) ) {
 			return 'media';
 		}
-		if ( in_array( $tool, array( 'menu_set', 'site_settings', 'theme_settings_set', 'theme_settings_get', 'widgets_set', 'plugins_install', 'theme_install', 'custom_css_set', 'site_check' ), true ) ) {
+		if ( in_array( $tool, array( 'menu_set', 'site_settings', 'theme_settings_set', 'theme_settings_get', 'widgets_set', 'plugins_install', 'theme_install', 'custom_css_set', 'site_check', 'woo_settings_set' ), true ) ) {
 			return 'site';
 		}
 		if ( in_array( $tool, array( 'approvals_list' ), true ) ) {
@@ -177,7 +177,14 @@ class FBCC_Live {
 			case 'theme_settings_set':
 				return $admin( 'themes.php', 'Themes' );
 			case 'menu_set':
-				return $admin( 'nav-menus.php', 'Menus' );
+				return ( function_exists( 'wp_is_block_theme' ) && wp_is_block_theme() && ! get_registered_nav_menus() )
+					? $admin( 'site-editor.php?postType=wp_navigation', 'Navigation' )
+					: $admin( 'nav-menus.php', 'Menus' );
+			case 'woo_products_list':
+			case 'woo_product_set':
+				return $admin( 'edit.php?post_type=product', 'Products' );
+			case 'woo_settings_set':
+				return $admin( 'admin.php?page=wc-settings', 'WooCommerce settings' );
 			case 'widgets_set':
 				return $admin( 'widgets.php', 'Widgets' );
 			case 'site_settings':

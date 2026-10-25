@@ -536,7 +536,7 @@ class FBCC_Admin {
 		foreach ( $rows as $r ) {
 			$tool   = FBCC_Tools::get( $r->tool );
 			$lock   = $tool ? FBCC_Gateway::lock_reason( array_merge( $tool, array( 'kind' => 'approval' ) ) ) : '';
-			$badges = array( 'content_publish' => 'PUBLISH', 'plugins_update' => 'PLUGIN', 'menu_set' => 'MENU', 'site_settings' => 'SITE', 'content_update' => 'LIVE EDIT', 'build_plan_submit' => 'BUILD PLAN', 'theme_settings_set' => 'THEME', 'widgets_set' => 'WIDGETS', 'plugins_install' => 'PLUGIN', 'theme_install' => 'THEME', 'content_trash' => 'TRASH' );
+			$badges = array( 'content_publish' => 'PUBLISH', 'plugins_update' => 'PLUGIN', 'menu_set' => 'MENU', 'site_settings' => 'SITE', 'content_update' => 'LIVE EDIT', 'build_plan_submit' => 'BUILD PLAN', 'theme_settings_set' => 'THEME', 'widgets_set' => 'WIDGETS', 'plugins_install' => 'PLUGIN', 'theme_install' => 'THEME', 'content_trash' => 'TRASH', 'woo_product_set' => 'PRODUCT', 'woo_settings_set' => 'SHOP' );
 			$badge  = $badges[ $r->tool ] ?? strtoupper( $r->tool );
 			$cls    = 'plugins_update' === $r->tool ? 'fbcc-b-red' : 'fbcc-b-amber';
 			echo '<div class="fbcc-appr"><div class="fbcc-appr-main"><div><span class="fbcc-badge ' . esc_attr( $cls ) . '">' . esc_html( $badge ) . '</span> <strong>' . esc_html( $r->title ) . '</strong></div>';

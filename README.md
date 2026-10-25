@@ -64,7 +64,7 @@ Claude never sees your password. It receives a key you can revoke at any time.
 
 A **build plan** replaces the separate approvals for everything it lists. Anything outside the plan still asks.
 
-## Tools (1.3.5)
+## Tools (1.4.0)
 
 **Read:** `site_health`, `site_check`, `content_list`, `content_get`, `plugins_list`, `media_list`, `backup_status`, `theme_settings_get`, `activity_recent`, `approvals_list`, `build_plan_status`, `task_status`
 
@@ -72,7 +72,11 @@ A **build plan** replaces the separate approvals for everything it lists. Anythi
 
 **Theme (approval or build plan):** `theme_settings_set`, `widgets_set`, `custom_css_set`
 
-**Plugins & themes (Site maintainer):** `plugins_install`, `plugins_update`, `theme_install`
+**Plugins & themes (Site maintainer):** `plugins_install`, `plugins_update`, `theme_install`. Both installs also take a `zip_url` (new in 1.4.0) for themes and plugins that are not on WordPress.org, such as a GitHub release; a zip also updates an installed copy, including this connector.
+
+**WooCommerce (new in 1.4.0):** `woo_products_list`, `woo_product_set` (products with prices, sale prices, texts, images and categories), `woo_settings_set` (currency, store pages, free shipping over an amount, flat rate). A build plan with `"shop": true` covers them.
+
+**Finishing touches (new in 1.4.0):** `content_update` also sets a page's slug and template, `site_settings` also sets the posts page and the logo, and `menu_set` also fills a block theme's Navigation.
 
 **With other plugins:** `form_create` (Contact Form 7), `mindmap_list`, `mindmap_get`, `mindmap_update` (FB Mind Map)
 
@@ -113,7 +117,7 @@ If your site uses Elementor, Claude now builds pages with real Elementor widgets
 3. Agree the mockups with Claude in chat. Claude sends **one build plan** that lists the pages, blog posts, theme, plugins and the default content to move to the Trash.
 4. Approve the plan once. Claude installs WPvivid and takes a backup, installs the theme and plugins, clears *Hello world!*, uploads the images and builds every page — you follow along on Watch Me Live.
 
-Only free plugins and themes from WordPress.org can be installed this way.
+Plugins and themes come from WordPress.org, or from a public zip address such as a GitHub release (new in 1.4.0). A WooCommerce shop is part of the plan too: products, prices, currency and free shipping.
 
 A complete worked example — the mockup, the prompts and the build kit for an 8-page clinic site — is in [`examples/nova/`](examples/nova/):
 

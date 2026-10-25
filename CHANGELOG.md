@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.4.0 (25 October 2026)
+
+Claude can now finish a whole site build by itself, including block themes and a WooCommerce shop. Before, the owner still had to click through a few screens at the end.
+
+- **content_update** also sets a page's **slug** (its address, e.g. `magaza`) and its **page template** (e.g. a block theme's *Full width page*). Renaming a page to a title in the build plan (for example WooCommerce's *Shop* to *Mağaza*) makes it part of the plan.
+- **site_settings** also sets the **posts page** (Settings → Reading) and the **site logo** (the Site Logo block and the theme logo).
+- **menu_set** works on **block themes**. They have no menu locations, so Claude writes the site Navigation that the header's Navigation block shows. Dropdowns work too.
+- **theme_settings_get** says whether the theme is a block theme and lists its page templates.
+- **theme_install** and **plugins_install** also install from a **zip address** (`zip_url`, https), for example a GitHub release or a `dist/` zip. A zip replaces an installed copy, so Claude can install themes and plugins that are not on WordPress.org, and can update this connector itself after you approve it.
+- New **WooCommerce** tools: **woo_products_list**, **woo_product_set** (create or update a product with prices, sale price, texts, images and categories) and **woo_settings_set** (currency and price format, store country, store pages, and a shipping zone with free shipping over an amount and a flat rate). A build plan covers them when it lists `"shop": true`.
+- A new build plan no longer drops work that is still waiting for **Launch**: it moves to the new plan.
+
 ## 1.3.3 (21 October 2026)
 
 - **Watch Me Live is now a design checker.** Three new buttons above the preview show your site the way it looks on a **desktop**, a **tablet** (768 px) or a **phone** (390 px).

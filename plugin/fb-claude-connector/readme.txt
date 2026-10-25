@@ -1,5 +1,5 @@
 === FB AI Engine – Claude Connector ===
-Version: 1.3.5
+Version: 1.4.0
 Requires at least: 6.4
 Requires PHP: 7.4
 License: GPLv2 or later

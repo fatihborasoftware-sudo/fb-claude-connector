@@ -112,8 +112,9 @@ class FBCC_Plan {
 					'menu'     => array( 'type' => 'boolean', 'description' => 'The plan includes the main menu' ),
 					'settings' => array( 'type' => 'boolean', 'description' => 'The plan includes homepage / site title / tagline' ),
 					'theme'    => array( 'type' => 'boolean', 'description' => 'The plan includes the theme look: header, footer, colours, fonts (theme_settings_set, widgets_set, custom_css_set, elementor_kit_set)' ),
+					'shop'     => array( 'type' => 'boolean', 'description' => 'The plan includes the WooCommerce shop: products, store settings, store pages and shipping (woo_product_set, woo_settings_set)' ),
 					'plugins'  => array( 'type' => 'array', 'items' => array( 'type' => 'string' ), 'description' => 'WordPress.org plugin slugs the plan needs, e.g. contact-form-7. On a fresh site list wpvivid-backuprestore first (for the backup).' ),
-					'themes'   => array( 'type' => 'array', 'items' => array( 'type' => 'string' ), 'description' => 'WordPress.org theme slugs to install and activate with theme_install, e.g. kadence' ),
+					'themes'   => array( 'type' => 'array', 'items' => array( 'type' => 'string' ), 'description' => 'Theme slugs to install and activate with theme_install, e.g. kadence (WordPress.org) or the folder name of a theme installed from a zip_url' ),
 					'trash'    => array( 'type' => 'array', 'items' => array( 'type' => 'integer' ), 'description' => 'Ids of existing pages/posts to move to the Trash with content_trash, e.g. WordPress\'s "Hello world!" post and "Sample Page"' ),
 					'launch'   => array( 'type' => 'string', 'enum' => array( 'auto', 'button' ), 'default' => 'button' ),
 					'mockups'  => array( 'type' => 'string', 'description' => 'Link to the approved mockups' ),
@@ -165,6 +166,9 @@ class FBCC_Plan {
 		if ( ! empty( $a['theme'] ) ) {
 			$extra[] = 'header, footer, colours & fonts';
 		}
+		if ( ! empty( $a['shop'] ) ) {
+			$extra[] = 'shop: products, store settings & shipping';
+		}
 		$plugins = array_values( array_filter( array_map( 'sanitize_key', (array) ( $a['plugins'] ?? array() ) ) ) );
 		if ( $plugins ) {
 			$extra[] = 'plugins: ' . implode( ', ', $plugins );
@@ -195,6 +199,7 @@ class FBCC_Plan {
 				'menu'     => ! empty( $a['menu'] ),
 				'settings' => ! empty( $a['settings'] ),
 				'theme'    => ! empty( $a['theme'] ),
+				'shop'     => ! empty( $a['shop'] ),
 				'plugins'  => $plugins,
 				'themes'   => $themes,
 				'trash'    => $trash,
@@ -212,6 +217,8 @@ class FBCC_Plan {
 			$old['status'] = 'ended';
 			self::save( $old );
 		}
+		// Work the old plan finished but never launched moves to the new plan, so it is not lost.
+		$carry = $old && ! empty( $old['queue'] ) ? $old['queue'] : array();
 		$id   = (int) get_option( 'fbcc_plan_seq', 0 ) + 1;
 		update_option( 'fbcc_plan_seq', $id, false );
 		$plan = array_merge( $p, array(
@@ -221,7 +228,7 @@ class FBCC_Plan {
 			'confirmed' => time(),
 			'expires'   => time() + self::DAYS * DAY_IN_SECONDS,
 			'built'     => array(),   // norm(title) => post id
-			'queue'     => array(),   // waiting for Launch
+			'queue'     => $carry,    // waiting for Launch
 		) );
 		// Pages that already exist with a planned title count as part of the plan.
 		foreach ( $plan['pages'] as $pg ) {
@@ -233,7 +240,7 @@ class FBCC_Plan {
 		self::save( $plan );
 		update_option( self::ACTIVE, $id, false );
 		return array(
-			'_summary' => 'Build plan #' . $id . ' “' . $plan['title'] . '” is active — Claude can build it without asking again',
+			'_summary' => 'Build plan #' . $id . ' “' . $plan['title'] . '” is active — Claude can build it without asking again' . ( $carry ? ' (' . count( $carry ) . ' item(s) from the previous plan still wait for Launch)' : '' ),
 			'_undo'    => admin_url( 'admin.php?page=fbcc' ),
 		);
 	}
@@ -264,6 +271,7 @@ class FBCC_Plan {
 			'menu'        => $p['menu'],
 			'settings'    => $p['settings'],
 			'theme'       => ! empty( $p['theme'] ),
+			'shop'        => ! empty( $p['shop'] ),
 			'plugins'     => (array) ( $p['plugins'] ?? array() ),
 			'themes'      => (array) ( $p['themes'] ?? array() ),
 			'trash'       => (array) ( $p['trash'] ?? array() ),
@@ -308,10 +316,32 @@ class FBCC_Plan {
 		return false;
 	}
 
+	/** A page or post that takes a planned title (and is not built yet) becomes that plan item. */
+	private static function adopt( array &$p, $id, $title ) {
+		$post = get_post( $id );
+		$n    = self::norm( $title );
+		if ( ! $post || ! in_array( $post->post_type, array( 'page', 'post' ), true ) || isset( $p['built'][ $n ] ) ) {
+			return false;
+		}
+		foreach ( $p['pages'] as $pg ) {
+			if ( self::norm( $pg['title'] ) === $n && ( $pg['type'] ?? 'page' ) === $post->post_type ) {
+				$p['built'][ $n ] = $id;
+				self::save( $p );
+				return true;
+			}
+		}
+		return false;
+	}
+
 	public static function covers( $tool, array $payload, array &$p ) {
 		switch ( $tool ) {
-			case 'content_publish':
 			case 'content_update':
+				// Renaming an existing page (e.g. WooCommerce's "Shop") to a planned title counts as building it.
+				if ( ! self::has_post( $p, $payload['id'] ?? 0 ) && isset( $payload['title'] ) ) {
+					return self::adopt( $p, (int) ( $payload['id'] ?? 0 ), (string) $payload['title'] );
+				}
+				return true;
+			case 'content_publish':
 			case 'post_settings_set':
 			case 'elementor_set':
 				return self::has_post( $p, $payload['id'] ?? 0 );
@@ -324,6 +354,9 @@ class FBCC_Plan {
 			case 'custom_css_set':
 			case 'elementor_kit_set':
 				return ! empty( $p['theme'] );
+			case 'woo_product_set':
+			case 'woo_settings_set':
+				return ! empty( $p['shop'] );
 			case 'plugins_install':
 				return in_array( (string) ( $payload['slug'] ?? '' ), (array) ( $p['plugins'] ?? array() ), true );
 			case 'theme_install':
@@ -489,6 +522,9 @@ class FBCC_Plan {
 		}
 		if ( ! empty( $p['theme'] ) ) {
 			echo '<li><span>Header, footer, colours &amp; fonts</span><em>in plan</em></li>';
+		}
+		if ( ! empty( $p['shop'] ) ) {
+			echo '<li><span>Shop: products, store settings &amp; shipping</span><em>in plan</em></li>';
 		}
 		foreach ( (array) ( $p['themes'] ?? array() ) as $th ) {
 			echo '<li class="' . ( get_stylesheet() === $th ? 'live' : '' ) . '"><span>Theme: ' . esc_html( $th ) . '</span><em>' . ( get_stylesheet() === $th ? 'active' : ( wp_get_theme( $th )->exists() ? 'installed' : 'in plan' ) ) . '</em></li>';

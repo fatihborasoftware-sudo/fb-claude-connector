@@ -38,7 +38,7 @@ class FBCC_SiteTools {
 		);
 		$t['menu_set'] = array(
 			'title'       => 'Set a menu',
-			'description' => 'Create or replace a navigation menu and place it in a theme location (default "primary", also the mobile menu). Items point to pages by id or to a url; parent = index of an earlier item for a dropdown. Goes to the approval queue.',
+			'description' => 'Create or replace a navigation menu and place it in a theme location (default "primary", also the mobile menu). On a block theme (no menu locations) it writes the site Navigation that the header\'s Navigation block shows. Items point to pages by id or to a url; parent = index of an earlier item for a dropdown. Goes to the approval queue unless the build plan includes the menu.',
 			'level'       => 'editor',
 			'kind'        => 'approval',
 			'schema'      => self::obj( array(
@@ -132,9 +132,13 @@ class FBCC_SiteTools {
 	/* -- menu ------------------------------------------------------- */
 
 	public static function menu_prepare( $a ) {
-		$locs = get_registered_nav_menus();
-		$loc  = sanitize_key( (string) ( $a['location'] ?? 'primary' ) );
-		if ( ! isset( $locs[ $loc ] ) ) {
+		$locs  = get_registered_nav_menus();
+		$loc   = sanitize_key( (string) ( $a['location'] ?? 'primary' ) );
+		$block = self::block_nav( $loc );
+		if ( $block ) {
+			$loc  = 'navigation';
+			$locs = array( 'navigation' => 'the site Navigation (block theme)' );
+		} elseif ( ! isset( $locs[ $loc ] ) ) {
 			return new WP_Error( 'bad_location', 'Unknown menu location. This theme has: ' . implode( ', ', array_keys( $locs ) ) );
 		}
 		$items = array_slice( (array) $a['items'], 0, 40 );
@@ -166,7 +170,91 @@ class FBCC_SiteTools {
 		);
 	}
 
+	/** A block theme without classic menu locations (or location "navigation") gets a wp_navigation menu. */
+	private static function block_nav( $loc ) {
+		if ( 'navigation' === $loc ) {
+			return true;
+		}
+		$locs = get_registered_nav_menus();
+		return function_exists( 'wp_is_block_theme' ) && wp_is_block_theme() && ! isset( $locs[ $loc ] );
+	}
+
+	/** Navigation block markup for the items; children nest under their parent. */
+	private static function nav_markup( array $items, $parent = -1 ) {
+		$out = '';
+		foreach ( $items as $i => $it ) {
+			if ( (int) $it['parent'] !== (int) $parent ) {
+				continue;
+			}
+			$attrs = array( 'label' => $it['title'] );
+			if ( $it['page'] ) {
+				$attrs['type'] = 'page';
+				$attrs['id']   = (int) $it['page'];
+				$attrs['url']  = get_permalink( (int) $it['page'] );
+				$attrs['kind'] = 'post-type';
+			} else {
+				$attrs['url']  = $it['url'];
+				$attrs['kind'] = 'custom';
+			}
+			$kids = self::nav_markup( $items, $i );
+			$json = wp_json_encode( $attrs, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+			$out .= '' !== $kids
+				? '<!-- wp:navigation-submenu ' . $json . ' -->' . $kids . '<!-- /wp:navigation-submenu -->'
+				: '<!-- wp:navigation-link ' . $json . ' /-->';
+		}
+		return $out;
+	}
+
+	/**
+	 * Block themes: the header's Navigation block without a "ref" shows the newest published
+	 * wp_navigation post, so the menu is written there (same name = replaced, the old content kept as a revision).
+	 * Navigation blocks that point at another menu by ref are switched to this one.
+	 */
+	private static function nav_execute( $p ) {
+		$content = self::nav_markup( $p['items'] );
+		$found   = get_posts( array( 'post_type' => 'wp_navigation', 'title' => $p['name'], 'post_status' => array( 'publish', 'draft' ), 'numberposts' => 1 ) );
+		$data    = array(
+			'post_type'    => 'wp_navigation',
+			'post_title'   => $p['name'],
+			'post_content' => $content,
+			'post_status'  => 'publish',
+		);
+		if ( $found ) {
+			$data['ID'] = $found[0]->ID;
+			$id         = wp_update_post( wp_slash( $data ), true );
+		} else {
+			$id = wp_insert_post( wp_slash( $data ), true );
+		}
+		if ( is_wp_error( $id ) ) {
+			return $id;
+		}
+		// Newest navigation wins the fallback: touch the date so this one is it.
+		wp_update_post( array( 'ID' => $id, 'post_date' => current_time( 'mysql' ), 'post_date_gmt' => current_time( 'mysql', true ) ) );
+		$switched = self::point_navigation_blocks( (int) $id );
+		return array(
+			'_summary' => 'Navigation “' . $p['name'] . '” set with ' . count( $p['items'] ) . ' items' . ( $switched ? ' (' . $switched . ' header/footer part' . ( 1 === $switched ? '' : 's' ) . ' now use it)' : '' ),
+			'_undo'    => admin_url( 'site-editor.php?postType=wp_navigation' ),
+		);
+	}
+
+	/** Edited template parts (header, footer) whose Navigation block names another menu by ref now use this one. */
+	private static function point_navigation_blocks( $nav_id ) {
+		$n     = 0;
+		$parts = get_posts( array( 'post_type' => array( 'wp_template_part', 'wp_template' ), 'post_status' => 'publish', 'numberposts' => 50, 'tax_query' => array( array( 'taxonomy' => 'wp_theme', 'field' => 'name', 'terms' => get_stylesheet() ) ) ) );
+		foreach ( $parts as $part ) {
+			$new = preg_replace( '/(<!-- wp:navigation \{[^}]*?"ref":)\d+/', '${1}' . (int) $nav_id, $part->post_content, -1, $c );
+			if ( $c && $new !== $part->post_content ) {
+				wp_update_post( wp_slash( array( 'ID' => $part->ID, 'post_content' => $new ) ) );
+				$n++;
+			}
+		}
+		return $n;
+	}
+
 	public static function menu_execute( $p ) {
+		if ( 'navigation' === ( $p['location'] ?? '' ) ) {
+			return self::nav_execute( $p );
+		}
 		$menu = wp_get_nav_menu_object( $p['name'] );
 		$id   = $menu ? (int) $menu->term_id : wp_create_nav_menu( $p['name'] );
 		if ( is_wp_error( $id ) ) {
